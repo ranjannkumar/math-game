@@ -1,8 +1,9 @@
+// src/components/TablePicker.jsx
 import React from 'react';
 import { FaArrowLeft } from 'react-icons/fa';
 import { themeConfigs, tableEmojis, tableBgColors } from '../utils/gameLogic';
-import  SessionTimer  from './ui/SessionTimer';
-import  DailyStatsCounter  from './ui/DailyStatsCounter';
+import DailyStatsCounter from './ui/DailyStatsCounter';
+import SessionTimer from './ui/SessionTimer';
 
 const TableStarsDisplay = ({ tableNumber, tableProgress }) => {
   const progress = tableProgress[tableNumber] || {};
@@ -12,7 +13,6 @@ const TableStarsDisplay = ({ tableNumber, tableProgress }) => {
   const blueCleared = progress.blue?.perfectPerformance === true;
   const redCleared = progress.red?.perfectPerformance === true;
   const brownCleared = progress.brown?.perfectPerformance === true;
-
   const filledStars = [whiteCleared, yellowCleared, greenCleared, blueCleared, redCleared, brownCleared].filter(Boolean).length;
   
   if (filledStars === 0) {
@@ -53,7 +53,6 @@ const TablePicker = ({
   };
   
   const highestUnlocked = 1;
-
   const tableToShow = 5;
 
   return (

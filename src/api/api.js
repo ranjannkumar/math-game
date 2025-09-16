@@ -1,8 +1,4 @@
 // src/api/api.js
-// This file is a placeholder for future API calls.
-// In the current implementation, the fetch call is handled directly in App.jsx.
-// For more complex applications, it is a good practice to centralize API logic here.
-
 export const sendPreTestResults = async (results) => {
   const requestData = {
     childName: results.childName,
@@ -29,13 +25,24 @@ export const sendPreTestResults = async (results) => {
         body: JSON.stringify(requestData)
       });
 
-      if (response.ok) {
-        const responseData = await response.json();
-        console.log('Results sent successfully:', responseData);
-        return responseData;
+      if (!response.ok) {
+        let errorMessage = `HTTP error! Status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (parseError) {
+          const errorText = await response.text();
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
+
+      const responseData = await response.json();
+      console.log('Results sent successfully:', responseData);
+      return responseData;
+
     } catch (error) {
-      console.error(`Error sending results to ${url}:`, error);
+      console.error(`Error with URL ${url}:`, error);
     }
   }
 

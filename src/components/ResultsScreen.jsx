@@ -1,3 +1,4 @@
+// src/components/ResultsScreen.jsx
 import React from 'react';
 import Confetti from 'react-confetti';
 import { showShootingStars } from '../utils/gameLogic';
@@ -11,7 +12,7 @@ const ResultsScreen = ({
   const withinTimeLimit = elapsedTime <= 30;
   const avgTimePerQuestion = elapsedTime / maxQuestions;
   const fastPerQuestion = avgTimePerQuestion < 5;
-  const canUnlockNext = allCorrect && withinTimeLimit && fastPerQuestion; // Simplified for this component
+  const canUnlockNext = allCorrect && withinTimeLimit && fastPerQuestion;
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-purple-900/90 via-pink-900/85 to-rose-800/90 backdrop-blur-sm flex items-center justify-center z-50 safe-area-top safe-area-bottom">

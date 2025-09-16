@@ -1,5 +1,6 @@
+// src/hooks/useMathGame.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { generateBeltQuestion, themeConfigs } from '../utils/gameLogic';
+import { generateBeltQuestion, themeConfigs, getLearningModuleContent } from '../utils/gameLogic';
 import audioManager from '../utils/audioUtils';
 
 const useMathGame = () => {
@@ -7,13 +8,12 @@ const useMathGame = () => {
   const [currentPage, setCurrentPage] = useState('picker');
   const [selectedTable, setSelectedTable] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
-  const [showThemePicker, setShowThemePicker] = useState(false);
   const [showDifficultyPicker, setShowDifficultyPicker] = useState(false);
   const [showLearningModule, setShowLearningModule] = useState(false);
   const [learningModuleContent, setLearningModuleContent] = useState('');
+  const [pendingDifficulty, setPendingDifficulty] = useState(null); // Corrected: Added this state
   const [showLearningQuestion, setShowLearningQuestion] = useState(false);
   const [learningQuestion, setLearningQuestion] = useState(null);
-  const [showLearningNextButton, setShowLearningNextButton] = useState(false);
   const [learningQuestionIndex, setLearningQuestionIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showResult, setShowResult] = useState(false);
@@ -53,23 +53,23 @@ const useMathGame = () => {
       addition: false, subtraction: false, multiplication: false, division: false
     };
   });
-  
   const [isBlackUnlocked, setIsBlackUnlocked] = useState(false);
   const [showBlackBeltDegrees, setShowBlackBeltDegrees] = useState(false);
   const [unlockedDegrees, setUnlockedDegrees] = useState([1]);
   const [completedBlackBeltDegrees, setCompletedBlackBeltDegrees] = useState([]);
   const [currentDegree, setCurrentDegree] = useState(1);
-
   const [tableProgress, setTableProgress] = useState({});
+
   const timeoutRef = useRef(null);
   const questionTimeoutId = useRef(null);
   const answeredQuestions = useRef(new Set());
+
   const maxQuestions = selectedDifficulty === 'brown' ? 10 : (selectedDifficulty && selectedDifficulty.startsWith('black')) ? 20 : 10;
   
+  // Effects
   useEffect(() => {
     const today = new Date().toDateString();
     const lastQuizDay = localStorage.getItem('math-last-quiz-day');
-    
     if (lastQuizDay !== today) {
       setPausedTime(0);
       setIsTimerPaused(false);
@@ -119,15 +119,7 @@ const useMathGame = () => {
     }, 5000);
   }, []);
   
-  const handleTimeout = useCallback(() => {
-    if (!currentQuestion) return;
-    setWrongCount(prev => prev + 1);
-    audioManager.playWrongSound();
-    // Logic for showing wrong answer/practice popup here
-    // For now, let's just move on
-    handleNextQuestion();
-  }, [currentQuestion]);
-
+  // Define handleNextQuestion first, as it's a dependency for handleTimeout
   const handleNextQuestion = useCallback(() => {
     const newTotalQuestions = answeredQuestions.current.size + 1;
     if (newTotalQuestions >= maxQuestions) {
@@ -135,8 +127,6 @@ const useMathGame = () => {
       audioManager.playCompleteSound();
       return;
     }
-    
-    // Generate new question based on difficulty and progress
     const newQuestion = generateBeltQuestion(selectedDifficulty, answeredQuestions.current.size, answeredQuestions.current, lastQuestion, selectedTable);
     setCurrentQuestion(newQuestion);
     answeredQuestions.current.add(newQuestion.question);
@@ -144,22 +134,25 @@ const useMathGame = () => {
     startQuestionTimer();
   }, [selectedDifficulty, selectedTable, lastQuestion, maxQuestions, answeredQuestions, startQuestionTimer]);
 
+  const handleTimeout = useCallback(() => {
+    if (!currentQuestion) return;
+    setWrongCount(prev => prev + 1);
+    audioManager.playWrongSound();
+    handleNextQuestion();
+  }, [currentQuestion, handleNextQuestion]);
+  
+
   const handleAnswer = useCallback((selectedAnswer, answerIdx) => {
     if (isAnimating || showResult) return;
-
     if (questionTimeoutId.current) {
       clearTimeout(questionTimeoutId.current);
       questionTimeoutId.current = null;
     }
-
     if (!currentQuestion) return;
-    
     setIsAnimating(true);
     const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
-    
     const timeTaken = (Date.now() - quizStartTime) / 1000;
     setQuestionTimes(times => [...times, timeTaken]);
-
     if (isCorrect) {
       setCorrectCount(c => c + 1);
       audioManager.playCorrectSound();
@@ -167,9 +160,7 @@ const useMathGame = () => {
     } else {
       setWrongCount(w => w + 1);
       audioManager.playWrongSound();
-      // Show practice modal or similar logic
     }
-    
     setTimeout(() => {
       setIsAnimating(false);
       handleNextQuestion();
@@ -182,12 +173,9 @@ const useMathGame = () => {
     setShowDifficultyPicker(false);
     setCurrentPage('quiz');
     setShowLearningModule(false);
-    
-    // Reset all quiz-related state
-    setScore(0);
-    setTotalQuestions(0);
+    setCorrectCount(0);
+    setWrongCount(0);
     setShowResult(false);
-    setAnswerFeedback(null);
     setIsAnimating(false);
     setSlowQuestions(new Set());
     setCorrectCountForCompletion(0);
@@ -198,8 +186,6 @@ const useMathGame = () => {
     setIsTimerPaused(false);
     setLastQuestion('');
     answeredQuestions.current = new Set();
-    
-    // Generate first question
     const firstQuestion = generateBeltQuestion(difficulty, 0, answeredQuestions.current, '', table);
     setCurrentQuestion(firstQuestion);
     answeredQuestions.current.add(firstQuestion.question);
@@ -210,10 +196,11 @@ const useMathGame = () => {
   const startQuizWithDifficulty = useCallback((difficulty) => {
     const newContent = getLearningModuleContent(difficulty, selectedTable);
     setLearningModuleContent(newContent);
+    setPendingDifficulty(difficulty);
     setShowLearningModule(true);
-  }, [selectedTable]);
+  }, [selectedTable, setPendingDifficulty]); // Corrected: Added setPendingDifficulty to the dependency array
 
-  const handleResetProgress = () => {
+  const handleResetProgress = useCallback(() => {
     localStorage.clear();
     setScreen('start');
     setCurrentPage('picker');
@@ -221,57 +208,49 @@ const useMathGame = () => {
     setSelectedDifficulty(null);
     setTableProgress({});
     setCompletedSections({});
-  };
+  }, []);
 
-  const handleConfirmQuit = () => {
+  const handleConfirmQuit = useCallback(() => {
     setShowQuitModal(false);
     setScreen('start');
-  };
+  }, []);
 
-  const handleCancelQuit = () => {
+  const handleCancelQuit = useCallback(() => {
     setShowQuitModal(false);
-  };
+  }, []);
   
-  const handleNameSubmit = (e) => {
+  const handleNameSubmit = useCallback((e) => {
     e.preventDefault();
     if (childName.trim()) {
       localStorage.setItem('math-child-name', childName.trim());
       setScreen('theme');
+      // Added missing set state from original file
+      const [showThemePicker, setShowThemePicker] = useState(false);
       setShowThemePicker(true);
     }
-  };
+  }, [childName]);
 
-  const handleBackToThemePicker = () => {
+  const handleBackToThemePicker = useCallback(() => {
+    // Added missing set state from original file
+    const [showThemePicker, setShowThemePicker] = useState(false);
     setShowThemePicker(true);
     setCurrentPage('picker');
-  };
+  }, []);
 
-  const handleBackToNameForm = () => {
+  const handleBackToNameForm = useCallback(() => {
     setScreen('name');
-    setShowThemePicker(false);
-  };
+  }, []);
   
-  const getLearningModuleContent = (difficulty, table) => {
-    // Logic from the original App.js
-    if (difficulty === 'white' && table === 1) return '0 + 0 = 0';
-    if (difficulty === 'yellow' && table === 1) return '0 + 1 = 1';
-    //... add more logic as needed for other belts and levels
-    return 'Learning module content not found.';
-  };
-
-
   return {
     screen, setScreen,
     currentPage, setCurrentPage,
     selectedTable, setSelectedTable,
     selectedDifficulty, setSelectedDifficulty,
-    showThemePicker, setShowThemePicker,
     showDifficultyPicker, setShowDifficultyPicker,
     showLearningModule, setShowLearningModule,
     learningModuleContent, setLearningModuleContent,
     showLearningQuestion, setShowLearningQuestion,
     learningQuestion, setLearningQuestion,
-    showLearningNextButton, setShowLearningNextButton,
     learningQuestionIndex, setLearningQuestionIndex,
     isAnimating, setIsAnimating,
     showResult, setShowResult,

@@ -1,13 +1,13 @@
+// src/components/DifficultyPicker.jsx
 import React from 'react';
 import { FaArrowLeft } from 'react-icons/fa';
-import  SessionTimer  from './ui/SessionTimer';
-import  DailyStatsCounter  from './ui/DailyStatsCounter';
-import  tableProgress  from '../hooks/useMathGame';
+import DailyStatsCounter from './ui/DailyStatsCounter';
+import SessionTimer from './ui/SessionTimer';
 
 const DifficultyPicker = ({ 
   sessionTimerActive, sessionTimerStart, sessionTimerPaused, sessionTimerPauseStart, sessionTimerAccumulated,
   selectedTable, setShowDifficultyPicker, setCurrentPage, startQuizWithDifficulty, isBlackUnlocked,
-  showBlackBeltDegrees, setShowBlackBeltDegrees, unlockedDegrees, completedBlackBeltDegrees, currentDegree, setCurrentDegree
+  showBlackBeltDegrees, setShowBlackBeltDegrees, unlockedDegrees, completedBlackBeltDegrees, currentDegree, setCurrentDegree, tableProgress
 }) => {
   const tableProgressData = tableProgress[selectedTable] || {};
   const whiteCleared = tableProgressData.white?.perfectPerformance === true;
