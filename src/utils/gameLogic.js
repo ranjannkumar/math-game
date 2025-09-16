@@ -207,7 +207,7 @@ const generateAnswers = (correctAnswer) => {
   return answers;
 };
 
-const beltFacts = {
+export const beltFacts = {
   'white': [{
     question: '0 + 0',
     correctAnswer: 0,
@@ -556,7 +556,7 @@ const getQuestionsForLevel = (difficulty, table) => {
       }
     });
   };
-
+  
   if (difficulty === 'white') {
     if (table >= 1 && table <= 6) {
       addQuestions(beltFacts.white.slice(0, table * 2));
@@ -596,7 +596,7 @@ const getQuestionsForLevel = (difficulty, table) => {
       addQuestions(beltFacts.yellow);
       addQuestions(beltFacts.white);
     }
-  } else if (difficulty.startsWith('black')) {
+  } else if (difficulty && difficulty.startsWith('black')) {
     addQuestions(beltFacts.brown);
     addQuestions(beltFacts.red);
     addQuestions(beltFacts.blue);
@@ -633,7 +633,6 @@ export function generateBeltQuestion(difficulty, totalQuestions, askedQuestions,
     nextQuestion = questionsForLevel[0];
   }
 
-  // Ensure the selected question is not the same as the last one
   if (nextQuestion.question === lastQuestion) {
     const availableQuestions = questionsForLevel.filter(q => q.question !== lastQuestion);
     if (availableQuestions.length > 0) {

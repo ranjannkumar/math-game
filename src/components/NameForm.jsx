@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 
-const NameForm = ({ setScreen }) => {
+const NameForm = ({ setScreen, setShowPreTestPopup, setPreTestSection, childName, setChildName }) => {
   const [pin, setPin] = useState('');
   const [showPinWarning, setShowPinWarning] = useState(false);
-  const [childName, setChildName] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();

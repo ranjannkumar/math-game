@@ -1,6 +1,6 @@
 // src/hooks/useMathGame.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { generateBeltQuestion, themeConfigs, getLearningModuleContent } from '../utils/gameLogic';
+import { generateBeltQuestion, getLearningModuleContent } from '../utils/gameLogic';
 import audioManager from '../utils/audioUtils';
 
 const useMathGame = () => {
@@ -11,7 +11,7 @@ const useMathGame = () => {
   const [showDifficultyPicker, setShowDifficultyPicker] = useState(false);
   const [showLearningModule, setShowLearningModule] = useState(false);
   const [learningModuleContent, setLearningModuleContent] = useState('');
-  const [pendingDifficulty, setPendingDifficulty] = useState(null); // Corrected: Added this state
+  const [pendingDifficulty, setPendingDifficulty] = useState(null);
   const [showLearningQuestion, setShowLearningQuestion] = useState(false);
   const [learningQuestion, setLearningQuestion] = useState(null);
   const [learningQuestionIndex, setLearningQuestionIndex] = useState(0);
@@ -59,14 +59,27 @@ const useMathGame = () => {
   const [completedBlackBeltDegrees, setCompletedBlackBeltDegrees] = useState([]);
   const [currentDegree, setCurrentDegree] = useState(1);
   const [tableProgress, setTableProgress] = useState({});
-
+  const [showSpeedTest, setShowSpeedTest] = useState(false);
+  const [speedTestPopupVisible, setSpeedTestPopupVisible] = useState(false);
+  const [speedTestPopupAnimation, setSpeedTestPopupAnimation] = useState('animate-pop-in');
+  const [speedTestNumbers, setSpeedTestNumbers] = useState([]);
+  const [currentSpeedTestIndex, setCurrentSpeedTestIndex] = useState(-1);
+  const [speedTestStartTime, setSpeedTestStartTime] = useState(null);
+  const [speedTestTimes, setSpeedTestTimes] = useState([]);
+  const [speedTestComplete, setSpeedTestComplete] = useState(false);
+  const [speedTestStarted, setSpeedTestStarted] = useState(false);
+  const [speedTestCorrectCount, setSpeedTestCorrectCount] = useState(0);
+  const [speedTestShowTick, setSpeedTestShowTick] = useState(false);
+  const [studentReactionSpeed, setStudentReactionSpeed] = useState(() => 
+    parseFloat(localStorage.getItem('math-reaction-speed') || '1.0')
+  );
+  
   const timeoutRef = useRef(null);
   const questionTimeoutId = useRef(null);
   const answeredQuestions = useRef(new Set());
 
   const maxQuestions = selectedDifficulty === 'brown' ? 10 : (selectedDifficulty && selectedDifficulty.startsWith('black')) ? 20 : 10;
   
-  // Effects
   useEffect(() => {
     const today = new Date().toDateString();
     const lastQuizDay = localStorage.getItem('math-last-quiz-day');
@@ -110,16 +123,6 @@ const useMathGame = () => {
     localStorage.setItem('math-completed-sections', JSON.stringify(completedSections));
   }, [completedSections]);
 
-  const startQuestionTimer = useCallback(() => {
-    if (questionTimeoutId.current) {
-      clearTimeout(questionTimeoutId.current);
-    }
-    questionTimeoutId.current = setTimeout(() => {
-      handleTimeout();
-    }, 5000);
-  }, []);
-  
-  // Define handleNextQuestion first, as it's a dependency for handleTimeout
   const handleNextQuestion = useCallback(() => {
     const newTotalQuestions = answeredQuestions.current.size + 1;
     if (newTotalQuestions >= maxQuestions) {
@@ -132,7 +135,7 @@ const useMathGame = () => {
     answeredQuestions.current.add(newQuestion.question);
     setLastQuestion(newQuestion.question);
     startQuestionTimer();
-  }, [selectedDifficulty, selectedTable, lastQuestion, maxQuestions, answeredQuestions, startQuestionTimer]);
+  }, [selectedDifficulty, selectedTable, lastQuestion, maxQuestions]);
 
   const handleTimeout = useCallback(() => {
     if (!currentQuestion) return;
@@ -140,7 +143,57 @@ const useMathGame = () => {
     audioManager.playWrongSound();
     handleNextQuestion();
   }, [currentQuestion, handleNextQuestion]);
+
+  const startQuestionTimer = useCallback(() => {
+    if (questionTimeoutId.current) {
+      clearTimeout(questionTimeoutId.current);
+    }
+    questionTimeoutId.current = setTimeout(() => {
+      handleTimeout();
+    }, 5000);
+  }, [handleTimeout]);
   
+
+  const completeSpeedTest = useCallback(() => {
+    const avgTime = speedTestTimes.slice(0, 5).reduce((sum, time) => sum + time, 0) / 5;
+    const normalizedSpeed = Math.max(0.5, Math.min(1.5, avgTime / 1.5));
+    localStorage.setItem('math-reaction-speed', normalizedSpeed.toFixed(2));
+    setStudentReactionSpeed(normalizedSpeed);
+    setSpeedTestComplete(true);
+    audioManager.playCompleteSound();
+    setSpeedTestShowTick(true);
+    setTimeout(() => {
+      setSpeedTestPopupAnimation('animate-pop-out');
+      setTimeout(() => {
+        setShowSpeedTest(false);
+        setSpeedTestPopupVisible(false);
+      }, 500);
+    }, 3000);
+  }, [speedTestTimes, setStudentReactionSpeed, setSpeedTestComplete, setSpeedTestShowTick, setSpeedTestPopupAnimation, setShowSpeedTest, setSpeedTestPopupVisible]);
+
+  const handleSpeedTestInput = useCallback((number) => {
+    if (!speedTestStarted || speedTestComplete) return;
+    const currentTime = Date.now();
+    if (number === speedTestNumbers[currentSpeedTestIndex]) {
+      const reactionTime = (currentTime - speedTestStartTime) / 1000;
+      setSpeedTestTimes(prev => [...prev, reactionTime]);
+      const newCorrectCount = speedTestCorrectCount + 1;
+      setSpeedTestCorrectCount(newCorrectCount);
+      if (newCorrectCount < 5) {
+        setCurrentSpeedTestIndex(prev => prev + 1);
+        setSpeedTestStartTime(Date.now());
+        audioManager.playCorrectSound();
+      } else {
+        completeSpeedTest();
+      }
+    } else {
+      setSpeedTestTimes(prev => [...prev, 3.0]);
+      audioManager.playWrongSound();
+      setCurrentSpeedTestIndex(prev => prev + 1);
+      setSpeedTestStartTime(Date.now());
+    }
+  }, [speedTestStarted, speedTestComplete, speedTestNumbers, currentSpeedTestIndex, speedTestStartTime, speedTestCorrectCount, completeSpeedTest]);
+
 
   const handleAnswer = useCallback((selectedAnswer, answerIdx) => {
     if (isAnimating || showResult) return;
@@ -198,7 +251,7 @@ const useMathGame = () => {
     setLearningModuleContent(newContent);
     setPendingDifficulty(difficulty);
     setShowLearningModule(true);
-  }, [selectedTable, setPendingDifficulty]); // Corrected: Added setPendingDifficulty to the dependency array
+  }, [selectedTable]);
 
   const handleResetProgress = useCallback(() => {
     localStorage.clear();
@@ -224,23 +277,33 @@ const useMathGame = () => {
     if (childName.trim()) {
       localStorage.setItem('math-child-name', childName.trim());
       setScreen('theme');
-      // Added missing set state from original file
-      const [showThemePicker, setShowThemePicker] = useState(false);
-      setShowThemePicker(true);
     }
-  }, [childName]);
+  }, [childName, setScreen]);
 
   const handleBackToThemePicker = useCallback(() => {
-    // Added missing set state from original file
-    const [showThemePicker, setShowThemePicker] = useState(false);
-    setShowThemePicker(true);
-    setCurrentPage('picker');
-  }, []);
+    setScreen('theme');
+  }, [setScreen]);
 
   const handleBackToNameForm = useCallback(() => {
     setScreen('name');
-  }, []);
+  }, [setScreen]);
   
+  const openSpeedTest = useCallback(() => {
+    const numbers = Array.from({ length: 15 }, () => Math.floor(Math.random() * 9) + 1);
+    setSpeedTestNumbers(numbers);
+    setCurrentSpeedTestIndex(-1);
+    setSpeedTestTimes([]);
+    setSpeedTestComplete(false);
+    setSpeedTestStartTime(null);
+    setSpeedTestStarted(false);
+    setSpeedTestCorrectCount(0);
+    setSpeedTestShowTick(false);
+    setSpeedTestPopupVisible(true);
+    setSpeedTestPopupAnimation('animate-pop-in');
+    setShowSpeedTest(true);
+    audioManager.playButtonClick();
+  }, []);
+
   return {
     screen, setScreen,
     currentPage, setCurrentPage,
@@ -295,7 +358,22 @@ const useMathGame = () => {
     unlockedDegrees, setUnlockedDegrees,
     completedBlackBeltDegrees, setCompletedBlackBeltDegrees,
     currentDegree, setCurrentDegree,
-    tableProgress, setTableProgress
+    tableProgress, setTableProgress,
+    showSpeedTest, setShowSpeedTest,
+    speedTestPopupVisible, setSpeedTestPopupVisible,
+    speedTestPopupAnimation, setSpeedTestPopupAnimation,
+    speedTestNumbers, setSpeedTestNumbers,
+    currentSpeedTestIndex, setCurrentSpeedTestIndex,
+    speedTestStartTime, setSpeedTestStartTime,
+    speedTestTimes, setSpeedTestTimes,
+    speedTestComplete, setSpeedTestComplete,
+    speedTestStarted, setSpeedTestStarted,
+    speedTestCorrectCount, setSpeedTestCorrectCount,
+    speedTestShowTick, setSpeedTestShowTick,
+    studentReactionSpeed, setStudentReactionSpeed,
+    openSpeedTest,
+    handleSpeedTestInput,
+    completeSpeedTest
   };
 };
 

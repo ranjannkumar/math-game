@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { FaCog } from 'react-icons/fa';
 import Confetti from 'react-confetti';
 import useMathGame from './hooks/useMathGame.jsx';
@@ -13,8 +13,8 @@ import ResultsScreen from './components/ResultsScreen.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
 import LearningModule from './components/LearningModule.jsx';
 import SpeedTestScreen from './components/ui/SpeedTestScreen.jsx';
-import audioManager from './utils/audioUtils.js';
 import { showShootingStars, clearShootingStars } from './utils/gameLogic.js';
+import audioManager from './utils/audioUtils';
 
 const App = () => {
   const {
@@ -72,17 +72,22 @@ const App = () => {
     completedBlackBeltDegrees, setCompletedBlackBeltDegrees,
     currentDegree, setCurrentDegree,
     tableProgress, setTableProgress,
-    // Add showSpeedTest and setShowSpeedTest here to resolve the ReferenceError
     showSpeedTest, setShowSpeedTest,
+    speedTestPopupVisible, setSpeedTestPopupVisible,
+    speedTestPopupAnimation, setSpeedTestPopupAnimation,
+    speedTestNumbers, setSpeedTestNumbers,
+    currentSpeedTestIndex, setCurrentSpeedTestIndex,
+    speedTestStartTime, setSpeedTestStartTime,
+    speedTestTimes, setSpeedTestTimes,
+    speedTestComplete, setSpeedTestComplete,
+    speedTestStarted, setSpeedTestStarted,
+    speedTestCorrectCount, setSpeedTestCorrectCount,
+    speedTestShowTick, setSpeedTestShowTick,
+    studentReactionSpeed, setStudentReactionSpeed,
+    openSpeedTest,
+    handleSpeedTestInput,
+    completeSpeedTest
   } = useMathGame();
-
-  const [sessionTimerActive, setSessionTimerActive] = useState(false);
-  const [sessionTimerStart, setSessionTimerStart] = useState(null);
-  const [sessionTimerPaused, setSessionTimerPaused] = useState(false);
-  const [sessionTimerPauseStart, setSessionTimerPauseStart] = useState(null);
-  const [sessionTimerAccumulated, setSessionTimerAccumulated] = useState(0);
-  const [showThemePicker, setShowThemePicker] = useState(false);
-  const [blackBeltCountdown, setBlackBeltCountdown] = useState(5);
 
   const maxQuestions = selectedDifficulty === 'brown' ? 10 : (selectedDifficulty && selectedDifficulty.startsWith('black')) ? 20 : 10;
   
@@ -95,13 +100,12 @@ const App = () => {
       setCountdown(5);
       startActualQuiz(selectedDifficulty, selectedTable);
     }
-  }, [countdown, showResult, selectedDifficulty, selectedTable, startActualQuiz]);
+  }, [countdown, showResult, selectedDifficulty, selectedTable, startActualQuiz, setCountdown, setShowResult]);
 
   useEffect(() => {
     if (showResult && selectedDifficulty === 'brown' && correctCountForCompletion === 10) {
-      setBlackBeltCountdown(5);
       const countdownInterval = setInterval(() => {
-        setBlackBeltCountdown(prev => {
+        setCountdown(prev => {
           if (prev <= 1) {
             clearInterval(countdownInterval);
             setShowBlackBeltDegrees(true);
@@ -113,78 +117,8 @@ const App = () => {
       }, 1000);
       return () => clearInterval(countdownInterval);
     }
-  }, [showResult, selectedDifficulty, correctCountForCompletion, setShowBlackBeltDegrees, setShowResult]);
-
-  const [speedTestPopupVisible, setSpeedTestPopupVisible] = useState(false);
-  const [speedTestPopupAnimation, setSpeedTestPopupAnimation] = useState('animate-pop-in');
-  const [speedTestNumbers, setSpeedTestNumbers] = useState([]);
-  const [currentSpeedTestIndex, setCurrentSpeedTestIndex] = useState(-1);
-  const [speedTestStartTime, setSpeedTestStartTime] = useState(null);
-  const [speedTestTimes, setSpeedTestTimes] = useState([]);
-  const [speedTestComplete, setSpeedTestComplete] = useState(false);
-  const [speedTestStarted, setSpeedTestStarted] = useState(false);
-  const [speedTestCorrectCount, setSpeedTestCorrectCount] = useState(0);
-  const [speedTestShowTick, setSpeedTestShowTick] = useState(false);
-  const [studentReactionSpeed, setStudentReactionSpeed] = useState(() => 
-    parseFloat(localStorage.getItem('math-reaction-speed') || '1.0')
-  );
-
-  const openSpeedTest = useCallback(() => {
-    const numbers = Array.from({ length: 15 }, () => Math.floor(Math.random() * 9) + 1);
-    setSpeedTestNumbers(numbers);
-    setCurrentSpeedTestIndex(-1);
-    setSpeedTestTimes([]);
-    setSpeedTestComplete(false);
-    setSpeedTestStartTime(null);
-    setSpeedTestStarted(false);
-    setSpeedTestCorrectCount(0);
-    setSpeedTestShowTick(false);
-    setSpeedTestPopupVisible(true);
-    setSpeedTestPopupAnimation('animate-pop-in');
-    setShowSpeedTest(true);
-    audioManager.playButtonClick();
-  }, [setShowSpeedTest]); // Added setShowSpeedTest to the dependency array
-
-  const handleSpeedTestInput = useCallback((number) => {
-    if (!speedTestStarted || speedTestComplete) return;
-    const currentTime = Date.now();
-    if (number === speedTestNumbers[currentSpeedTestIndex]) {
-      const reactionTime = (currentTime - speedTestStartTime) / 1000;
-      setSpeedTestTimes(prev => [...prev, reactionTime]);
-      const newCorrectCount = speedTestCorrectCount + 1;
-      setSpeedTestCorrectCount(newCorrectCount);
-      if (newCorrectCount < 5) {
-        setCurrentSpeedTestIndex(prev => prev + 1);
-        setSpeedTestStartTime(Date.now());
-        audioManager.playCorrectSound();
-      } else {
-        completeSpeedTest();
-      }
-    } else {
-      setSpeedTestTimes(prev => [...prev, 3.0]);
-      audioManager.playWrongSound();
-      setCurrentSpeedTestIndex(prev => prev + 1);
-      setSpeedTestStartTime(Date.now());
-    }
-  }, [speedTestStarted, speedTestComplete, speedTestNumbers, currentSpeedTestIndex, speedTestStartTime, speedTestCorrectCount]);
-
-  const completeSpeedTest = useCallback(() => {
-    const avgTime = speedTestTimes.slice(0, 5).reduce((sum, time) => sum + time, 0) / 5;
-    const normalizedSpeed = Math.max(0.5, Math.min(1.5, avgTime / 1.5));
-    localStorage.setItem('math-reaction-speed', normalizedSpeed.toFixed(2));
-    setStudentReactionSpeed(normalizedSpeed);
-    setSpeedTestComplete(true);
-    audioManager.playCompleteSound();
-    setSpeedTestShowTick(true);
-    setTimeout(() => {
-      setSpeedTestPopupAnimation('animate-pop-out');
-      setTimeout(() => {
-        setShowSpeedTest(false);
-        setSpeedTestPopupVisible(false);
-      }, 500);
-    }, 3000);
-  }, [speedTestTimes, setShowSpeedTest]); // Added setShowSpeedTest to the dependency array
-
+  }, [showResult, selectedDifficulty, correctCountForCompletion, setShowBlackBeltDegrees, setShowResult, setCountdown]);
+  
   const showConfetti = () => {
     const allCorrect = correctCount === maxQuestions;
     const withinTimeLimit = elapsedTime <= 30;
@@ -207,18 +141,23 @@ const App = () => {
       />
     ) : null;
   };
-
+  
   useEffect(() => {
     if (currentPage !== 'results') {
       clearShootingStars();
     }
   }, [currentPage]);
+  
+  const handleStartApp = () => {
+    audioManager.init();
+    setScreen('name');
+  };
 
   return (
     <div className="App min-h-screen w-full relative">
-      {screen === 'start' && <StartScreen setScreen={setScreen} />}
-      {screen === 'name' && <NameForm setScreen={setScreen} setShowThemePicker={setShowThemePicker} setShowPreTestPopup={setShowPreTestPopup} setPreTestSection={setPreTestSection} setPreTestQuestions={setPreTestQuestions} setPreTestCurrentQuestion={setPreTestCurrentQuestion} setPreTestScore={setPreTestScore} setPreTestInputValue={setPreTestInputValue} setPreTestTimer={setPreTestTimer} setPreTestTimerActive={setPreTestTimerActive} preTestSection={preTestSection} preTestQuestions={preTestQuestions} preTestCurrentQuestion={preTestCurrentQuestion} preTestScore={preTestScore} preTestInputValue={preTestInputValue} preTestTimer={preTestTimer} preTestTimerActive={preTestTimerActive} showResultsModal={showResultsModal} preTestResults={preTestResults} setShowResultsModal={setShowResultsModal} completedSections={completedSections} setCompletedSections={setCompletedSections} childName={childName} setChildName={setChildName} childAge={childAge} setChildAge={setChildAge}/>}
-      {screen === 'theme' && <ThemePicker selectedTheme={selectedTheme} setSelectedTheme={setSelectedTheme} setScreen={setScreen} setCurrentPage={setCurrentPage} setShowThemePicker={setShowThemePicker}/>}
+      {screen === 'start' && <StartScreen setScreen={handleStartApp} />}
+      {screen === 'name' && <NameForm setScreen={setScreen} setShowPreTestPopup={setShowPreTestPopup} setPreTestSection={setPreTestSection} childName={childName} setChildName={setChildName}/>}
+      {screen === 'theme' && <ThemePicker selectedTheme={selectedTheme} setSelectedTheme={setSelectedTheme} setScreen={setScreen} setCurrentPage={setCurrentPage}/>}
 
       {screen === 'main' && (
         <div
@@ -240,8 +179,8 @@ const App = () => {
             <FaCog />
           </button>
           
-          {currentPage === 'picker' && <TablePicker selectedTable={selectedTable} setSelectedTable={setSelectedTable} setCurrentPage={setCurrentPage} selectedTheme={selectedTheme} showDifficultyPicker={showDifficultyPicker} setShowDifficultyPicker={setShowDifficultyPicker} sessionTimerActive={sessionTimerActive} sessionTimerStart={sessionTimerStart} sessionTimerPaused={sessionTimerPaused} sessionTimerPauseStart={sessionTimerPauseStart} sessionTimerAccumulated={sessionTimerAccumulated} childName={childName} tableProgress={tableProgress}/>}
-          {currentPage === 'difficulty' && <DifficultyPicker selectedTable={selectedTable} setSelectedTable={setSelectedTable} selectedDifficulty={selectedDifficulty} setSelectedDifficulty={setSelectedDifficulty} setShowDifficultyPicker={setShowDifficultyPicker} setCurrentPage={setCurrentPage} startQuizWithDifficulty={startQuizWithDifficulty} sessionTimerActive={sessionTimerActive} sessionTimerStart={sessionTimerStart} sessionTimerPaused={sessionTimerPaused} sessionTimerPauseStart={sessionTimerPauseStart} sessionTimerAccumulated={sessionTimerAccumulated} showBlackBeltDegrees={showBlackBeltDegrees} setShowBlackBeltDegrees={setShowBlackBeltDegrees} unlockedDegrees={unlockedDegrees} setUnlockedDegrees={setUnlockedDegrees} completedBlackBeltDegrees={completedBlackBeltDegrees} setCompletedBlackBeltDegrees={setCompletedBlackBeltDegrees} currentDegree={currentDegree} setCurrentDegree={setCurrentDegree} isBlackUnlocked={isBlackUnlocked} tableProgress={tableProgress}/>}
+          {currentPage === 'picker' && <TablePicker setSelectedTable={setSelectedTable} setCurrentPage={setCurrentPage} selectedTheme={selectedTheme} showDifficultyPicker={showDifficultyPicker} setShowDifficultyPicker={setShowDifficultyPicker} childName={childName} tableProgress={tableProgress}/>}
+          {currentPage === 'difficulty' && <DifficultyPicker selectedTable={selectedTable} setSelectedTable={setSelectedTable} selectedDifficulty={selectedDifficulty} setSelectedDifficulty={setSelectedDifficulty} setShowDifficultyPicker={setShowDifficultyPicker} setCurrentPage={setCurrentPage} startQuizWithDifficulty={startQuizWithDifficulty} showBlackBeltDegrees={showBlackBeltDegrees} setShowBlackBeltDegrees={setShowBlackBeltDegrees} unlockedDegrees={unlockedDegrees} setUnlockedDegrees={setUnlockedDegrees} completedBlackBeltDegrees={completedBlackBeltDegrees} setCompletedBlackBeltDegrees={setCompletedBlackBeltDegrees} currentDegree={currentDegree} setCurrentDegree={setCurrentDegree} isBlackUnlocked={isBlackUnlocked} tableProgress={tableProgress}/>}
           {currentPage === 'quiz' && !showResult && <QuizScreen
             currentQuestion={currentQuestion}
             quizProgress={quizProgress}
@@ -250,7 +189,6 @@ const App = () => {
             isAnimating={isAnimating}
             showResult={showResult}
             selectedDifficulty={selectedDifficulty}
-            sessionTimerActive={sessionTimerActive} sessionTimerStart={sessionTimerStart} sessionTimerPaused={sessionTimerPaused} sessionTimerPauseStart={sessionTimerPauseStart} sessionTimerAccumulated={sessionTimerAccumulated}
           />}
           
           {showResult && (
@@ -265,12 +203,12 @@ const App = () => {
               countdown={countdown}
               setShowResult={setShowResult}
               setCurrentPage={setCurrentPage}
-              blackBeltCountdown={blackBeltCountdown}
+              blackBeltCountdown={5}
             />
           )}
 
           {showSettings && (
-            <SettingsModal currentPage={currentPage} handleQuit={handleQuit} handleResetProgress={handleResetProgress} setShowSettings={setShowSettings} />
+            <SettingsModal currentPage={currentPage} handleQuit={() => setShowQuitModal(true)} handleResetProgress={handleResetProgress} setShowSettings={setShowSettings} />
           )}
 
           {showQuitModal && (
@@ -293,18 +231,13 @@ const App = () => {
             </div>
           )}
           
-          {showLearningModule && (
+          {showLearningModule && selectedDifficulty && (
             <LearningModule
               pendingDifficulty={selectedDifficulty}
               selectedTable={selectedTable}
-              setScreen={setScreen}
               setShowLearningModule={setShowLearningModule}
               setShowLearningQuestion={setShowLearningQuestion}
               setLearningQuestion={setLearningQuestion}
-              learningModuleContent={learningModuleContent}
-              setLearningModuleContent={setLearningModuleContent}
-              learningQuestionIndex={learningQuestionIndex}
-              setLearningQuestionIndex={setLearningQuestionIndex}
               startActualQuiz={startActualQuiz}
             />
           )}

@@ -1,9 +1,9 @@
 // src/components/TablePicker.jsx
 import React from 'react';
 import { FaArrowLeft } from 'react-icons/fa';
-import { themeConfigs, tableEmojis, tableBgColors } from '../utils/gameLogic';
 import DailyStatsCounter from './ui/DailyStatsCounter';
 import SessionTimer from './ui/SessionTimer';
+import { themeConfigs, tableEmojis, tableBgColors } from '../utils/gameLogic';
 
 const TableStarsDisplay = ({ tableNumber, tableProgress }) => {
   const progress = tableProgress[tableNumber] || {};
