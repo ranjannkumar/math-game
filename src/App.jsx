@@ -13,6 +13,8 @@ import ResultsScreen from './components/ResultsScreen.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
 import LearningModule from './components/LearningModule.jsx';
 import SpeedTestScreen from './components/ui/SpeedTestScreen.jsx';
+import PreTestPopup from './components/PreTestPopup.jsx';
+import PreTestScreen from './components/PreTestScreen.jsx';
 import { showShootingStars, clearShootingStars } from './utils/gameLogic.js';
 import audioManager from './utils/audioUtils';
 
@@ -156,7 +158,33 @@ const App = () => {
   return (
     <div className="App min-h-screen w-full relative">
       {screen === 'start' && <StartScreen setScreen={handleStartApp} />}
-      {screen === 'name' && <NameForm setScreen={setScreen} setShowPreTestPopup={setShowPreTestPopup} setPreTestSection={setPreTestSection} childName={childName} setChildName={setChildName}/>}
+      {screen === 'name' && !showPreTestPopup && <NameForm setScreen={setScreen} setShowPreTestPopup={setShowPreTestPopup} setPreTestSection={setPreTestSection} childName={childName} setChildName={setChildName}/>}
+      {showPreTestPopup && (
+        <PreTestPopup 
+          setShowPreTestPopup={setShowPreTestPopup}
+          setPreTestQuestions={setPreTestQuestions}
+          setPreTestCurrentQuestion={setPreTestCurrentQuestion}
+          setPreTestScore={setPreTestScore}
+          setPreTestTimerActive={setPreTestTimerActive}
+        />
+      )}
+      {preTestTimerActive && (
+        <PreTestScreen 
+          preTestQuestions={preTestQuestions}
+          preTestCurrentQuestion={preTestCurrentQuestion}
+          preTestScore={preTestScore}
+          setPreTestScore={setPreTestScore}
+          setPreTestCurrentQuestion={setPreTestCurrentQuestion}
+          setShowPreTestPopup={setShowPreTestPopup}
+          setPreTestTimerActive={setPreTestTimerActive}
+          preTestTimer={preTestTimer}
+          setPreTestTimer={setPreTestTimer}
+          setShowResultsModal={setShowResultsModal}
+          setPreTestResults={setPreTestResults}
+          childName={childName}
+          setScreen={setScreen}
+        />
+      )}
       {screen === 'theme' && <ThemePicker selectedTheme={selectedTheme} setSelectedTheme={setSelectedTheme} setScreen={setScreen} setCurrentPage={setCurrentPage}/>}
 
       {screen === 'main' && (
@@ -189,6 +217,7 @@ const App = () => {
             isAnimating={isAnimating}
             showResult={showResult}
             selectedDifficulty={selectedDifficulty}
+            isTimerPaused={isTimerPaused}
           />}
           
           {showResult && (
@@ -241,7 +270,7 @@ const App = () => {
               startActualQuiz={startActualQuiz}
             />
           )}
-
+          
           {showLearningQuestion && learningQuestion && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
               <div className="bg-gradient-to-br from-blue-100 via-indigo-50 to-purple-100 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl max-w-sm sm:max-w-md w-full mx-2 sm:mx-4 border border-blue-200/30 popup-zoom-in">

@@ -1,6 +1,6 @@
 // src/hooks/useMathGame.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { generateBeltQuestion, getLearningModuleContent, beltFacts } from '../utils/gameLogic';
+import { generateBeltQuestion, getLearningModuleContent, beltFacts, generatePreTestQuestion } from '../utils/gameLogic';
 import audioManager from '../utils/audioUtils';
 
 const useMathGame = () => {
@@ -184,7 +184,7 @@ const useMathGame = () => {
       newQuestion = {
         question: fact.question,
         correctAnswer: fact.correctAnswer,
-        answers: generateAnswers(fact.correctAnswer)
+        answers: [fact.correctAnswer, fact.correctAnswer + 1, fact.correctAnswer - 1, fact.correctAnswer + 2].filter(ans => ans >= 0).sort(() => Math.random() - 0.5)
       };
     } else {
       const allQuestions = Object.values(beltFacts).flat();
@@ -289,8 +289,19 @@ const useMathGame = () => {
     } else {
       setSpeedTestTimes(prev => [...prev, 3.0]);
       audioManager.playWrongSound();
-      setCurrentSpeedTestIndex(prev => prev + 1);
-      setSpeedTestStartTime(Date.now());
+      // Corrected logic for handling wrong answers
+      if (currentSpeedTestIndex < speedTestNumbers.length -1) {
+        setCurrentSpeedTestIndex(prev => prev + 1);
+        setSpeedTestStartTime(Date.now());
+      } else {
+        // Handle the case where the test is complete but with wrong answers
+        setSpeedTestComplete(true);
+        setSpeedTestPopupAnimation('animate-pop-out');
+        setTimeout(() => {
+          setShowSpeedTest(false);
+          setSpeedTestPopupVisible(false);
+        }, 500);
+      }
     }
   }, [speedTestStarted, speedTestComplete, speedTestNumbers, currentSpeedTestIndex, speedTestStartTime, speedTestCorrectCount, completeSpeedTest]);
 

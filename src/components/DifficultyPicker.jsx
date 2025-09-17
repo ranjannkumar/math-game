@@ -273,7 +273,16 @@ const DifficultyPicker = ({
           </div>
         </div>
       </div>
-      <div className="fixed right-2 sm:right-4 md:right-6 lg:right-8 bottom-2 sm:bottom-4 md:bottom-6 lg:bottom-8 z-50 flex flex-col items-end gap-2 sm:gap-3 md:gap-4">
+      <div style={{
+        position: 'fixed',
+        right: 'max(env(safe-area-inset-right), 1rem)',
+        bottom: 'max(env(safe-area-inset-bottom), 1rem)',
+        zIndex: 99999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: 'clamp(0.5rem, 2vw, 1rem)'
+      }}>
         <DailyStatsCounter style={{ background: 'none', boxShadow: 'none', position: 'static' }} />
         <SessionTimer isActive={sessionTimerActive} startTime={sessionTimerStart} style={{ position: 'static' }} isPaused={sessionTimerPaused} pauseStartTime={sessionTimerPauseStart} accumulatedTime={sessionTimerAccumulated} />
       </div>

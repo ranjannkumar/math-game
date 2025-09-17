@@ -23,19 +23,32 @@ const init = async () => {
     
     isInitialized = true;
   } catch (e) {
-    console.error('Web Audio API is not supported in this browser.', e);
+    console.error('Web Audio API initialization failed:', e);
+    // Fallback or disable audio features if not supported
+    isInitialized = false;
   }
 };
 
 const playSound = (buffer) => {
-  if (!audioContext || !buffer || audioContext.state === 'suspended') {
-    console.log('AudioContext is suspended or not initialized.');
+  if (!audioContext || !buffer) {
+    console.warn('AudioContext or buffer not available.');
     return;
   }
-  const source = audioContext.createBufferSource();
-  source.buffer = buffer;
-  source.connect(audioContext.destination);
-  source.start(0);
+
+  // Check if AudioContext is suspended and resume it
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().then(() => {
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      source.start(0);
+    });
+  } else {
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    source.start(0);
+  }
 };
 
 export default {
@@ -45,19 +58,37 @@ export default {
   playCompleteSound: () => playSound(completeSound),
   playButtonClick: () => {
     // Play a simple click sound instantly for UI feedback
-    if (audioContext && audioContext.state === 'running') {
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-      
-      oscillator.start();
-      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
-      oscillator.stop(audioContext.currentTime + 0.1);
+    if (audioContext && audioContext.state !== 'closed') {
+      // Check if AudioContext is suspended and resume it
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+          gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+          
+          oscillator.start();
+          gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+          oscillator.stop(audioContext.currentTime + 0.1);
+        });
+      } else {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+        
+        oscillator.start();
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+        oscillator.stop(audioContext.currentTime + 0.1);
+      }
     }
   },
 };
