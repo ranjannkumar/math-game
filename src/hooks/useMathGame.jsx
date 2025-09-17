@@ -11,13 +11,17 @@ const useMathGame = () => {
   const [screen, setScreen] = useState('start');
   const [currentPage, setCurrentPage] = useState('picker');
   const [selectedTable, setSelectedTable] = useState(null); // level (1..6)
-  const [selectedDifficulty, setSelectedDifficulty] = useState(null); // belt
+  const [selectedDifficulty, setSelectedDifficulty] = useState(null); // belt or black-x
   const [showDifficultyPicker, setShowDifficultyPicker] = useState(false);
+
+  // Learning module
   const [showLearningModule, setShowLearningModule] = useState(false);
   const [learningModuleContent, setLearningModuleContent] = useState('');
   const [showLearningQuestion, setShowLearningQuestion] = useState(false);
   const [learningQuestion, setLearningQuestion] = useState(null);
   const [learningQuestionIndex, setLearningQuestionIndex] = useState(0);
+
+  // Quiz/result UI
   const [isAnimating, setIsAnimating] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [quizProgress, setQuizProgress] = useState(0);
@@ -28,13 +32,17 @@ const useMathGame = () => {
   const [correctCountForCompletion, setCorrectCountForCompletion] = useState(0);
   const [answerSymbols, setAnswerSymbols] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // <-- NEW
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [lastQuestion, setLastQuestion] = useState('');
   const [lastWhiteBeltNumber, setLastWhiteBeltNumber] = useState(null);
+
+  // Timers
   const [quizStartTime, setQuizStartTime] = useState(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [pausedTime, setPausedTime] = useState(0);
   const [isTimerPaused, setIsTimerPaused] = useState(false);
+
+  // Misc UI
   const [countdown, setCountdown] = useState(5);
   const [showSettings, setShowSettings] = useState(false);
   const [showQuitModal, setShowQuitModal] = useState(false);
@@ -42,7 +50,7 @@ const useMathGame = () => {
   const [childName, setChildName] = useState(() => localStorage.getItem('math-child-name') || '');
   const [childAge, setChildAge] = useState(() => localStorage.getItem('math-child-age') || '');
 
-  // Pre-test (kept for compatibility)
+  // Pre-test
   const [showPreTestPopup, setShowPreTestPopup] = useState(false);
   const [preTestSection, setPreTestSection] = useState('addition');
   const [preTestQuestions, setPreTestQuestions] = useState([]);
@@ -55,23 +63,31 @@ const useMathGame = () => {
   const [preTestResults, setPreTestResults] = useState(null);
   const [completedSections, setCompletedSections] = useState({});
 
-  // Black belt state (kept)
+  // Black belt
   const [isBlackUnlocked, setIsBlackUnlocked] = useState(false);
   const [showBlackBeltDegrees, setShowBlackBeltDegrees] = useState(false);
   const [unlockedDegrees, setUnlockedDegrees] = useState(() => {
     const saved = localStorage.getItem('math-unlocked-degrees');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   const [completedBlackBeltDegrees, setCompletedBlackBeltDegrees] = useState(() => {
     const saved = localStorage.getItem('math-completed-black-belt-degrees');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   const [currentDegree, setCurrentDegree] = useState(1);
 
   // Belt progress (levels → belts)
   const [tableProgress, setTableProgress] = useState({});
 
-  // Speed test (kept)
+  // Speed test
   const [showSpeedTest, setShowSpeedTest] = useState(false);
   const [speedTestPopupVisible, setSpeedTestPopupVisible] = useState(false);
   const [speedTestPopupAnimation, setSpeedTestPopupAnimation] = useState('animate-pop-in');
@@ -94,16 +110,14 @@ const useMathGame = () => {
   const questionTimeoutId = useRef(null);
   const questionStartTimestamp = useRef(null);
   const answeredQuestions = useRef(new Set());
-  const quizQuestions = useRef([]); // ten questions we build up front
+  const quizQuestions = useRef([]); // built questions
 
   const maxQuestions =
-    selectedDifficulty === 'brown'
-      ? 10
-      : selectedDifficulty && selectedDifficulty.startsWith('black')
+    selectedDifficulty && selectedDifficulty.startsWith('black')
       ? (selectedDifficulty.endsWith('7') ? 30 : 20)
       : 10;
 
-  // Load belt progress from localStorage once
+  // Load belt progress from localStorage once (FIXED try/catch)
   useEffect(() => {
     const loadedProgress = {};
     for (let table = 1; table <= 12; table++) {
@@ -114,8 +128,11 @@ const useMathGame = () => {
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
-            if (parsed?.perfectPerformance === true) {
-              loadedProgress[table][belt] = parsed;
+            if (parsed && typeof parsed === 'object') {
+              loadedProgress[table][belt] = {
+                completed: !!parsed.completed,
+                perfectPerformance: !!parsed.perfectPerformance,
+              };
             }
           } catch {
             if (saved === 'completed') {
@@ -130,6 +147,7 @@ const useMathGame = () => {
     setTableProgress(loadedProgress);
   }, []);
 
+  // persist smaller bits
   useEffect(() => {
     localStorage.setItem('math-completed-sections', JSON.stringify(completedSections));
   }, [completedSections]);
@@ -139,12 +157,47 @@ const useMathGame = () => {
   }, [unlockedDegrees]);
 
   useEffect(() => {
-    localStorage.setItem('math-completed-black-belt-degrees', JSON.stringify(completedBlackBeltDegrees));
+    localStorage.setItem(
+      'math-completed-black-belt-degrees',
+      JSON.stringify(completedBlackBeltDegrees)
+    );
   }, [completedBlackBeltDegrees]);
 
-  // Launch learning sequence BEFORE quiz
+  // ----- HARD RESET of quiz state (helper) -----
+  const hardResetQuizState = useCallback(() => {
+    // progress / meta
+    setQuizProgress(0);
+    setAnswerSymbols([]);
+    setCorrectCount(0);
+    setWrongCount(0);
+    setQuestionTimes([]);
+    setSlowQuestions(new Set());
+    setCorrectCountForCompletion(0);
+
+    // questions & indices
+    quizQuestions.current = [];
+    answeredQuestions.current = new Set();
+    setCurrentQuestion(null);
+    setCurrentQuestionIndex(0);
+    setLastQuestion('');
+
+    // timers
+    setQuizStartTime(null);
+    setElapsedTime(0);
+    setPausedTime(0);
+    setIsTimerPaused(false);
+
+    // flags
+    setShowResult(false);
+    setIsAnimating(false);
+    setShowLearningQuestion(false);
+  }, []);
+
+  // Launch learning sequence BEFORE quiz — also reset progress here (fixes stale progress bar)
   const startQuizWithDifficulty = useCallback(
     (difficulty) => {
+      hardResetQuizState(); // ← ensure progress bar & symbols reset
+
       setSelectedDifficulty(difficulty);
       setLearningQuestionIndex(0);
       const content = getLearningModuleContent(difficulty, selectedTable);
@@ -153,42 +206,32 @@ const useMathGame = () => {
       setShowLearningModule(true);
       navigate('/learning');
     },
-    [navigate, selectedTable]
+    [navigate, selectedTable, hardResetQuizState]
   );
 
-  // Start actual quiz (after learning)
-  const startActualQuiz = useCallback((difficulty, table) => {
-    setSelectedDifficulty(difficulty);
-    setSelectedTable(table);
-    setCorrectCount(0);
-    setWrongCount(0);
-    setIsAnimating(false);
-    setShowResult(false);
-    setQuizProgress(0);
-    setQuestionTimes([]);
-    setSlowQuestions(new Set());
-    setCorrectCountForCompletion(0);
-    answeredQuestions.current = new Set();
-    setLastQuestion('');
-    setShowLearningModule(false);
-    setShowLearningQuestion(false);
+  // Start actual quiz (after learning) — resets again (double guard)
+  const startActualQuiz = useCallback(
+    (difficulty, table) => {
+      hardResetQuizState(); // ← guard second time in case of bouncing
 
-    // Build 10 questions and start
-    quizQuestions.current = buildQuizForBelt(table, difficulty);
-    if (quizQuestions.current.length === 0) {
-      quizQuestions.current = buildQuizForBelt(1, 'white');
-    }
+      setSelectedDifficulty(difficulty);
+      setSelectedTable(table);
 
-    setCurrentQuestionIndex(0);
-    const first = quizQuestions.current[0];
-    setCurrentQuestion(first);
-    answeredQuestions.current.add(first.question);
+      // Build questions and start
+      quizQuestions.current = buildQuizForBelt(table, difficulty);
+      if (quizQuestions.current.length === 0) {
+        quizQuestions.current = buildQuizForBelt(1, 'white');
+      }
+      setCurrentQuestionIndex(0);
+      const first = quizQuestions.current[0];
+      setCurrentQuestion(first);
+      answeredQuestions.current.add(first.question);
 
-    setQuizStartTime(Date.now());
-    setElapsedTime(0);
-    setIsTimerPaused(false);
-    questionStartTimestamp.current = Date.now();
-  }, []);
+      setQuizStartTime(Date.now());
+      questionStartTimestamp.current = Date.now();
+    },
+    [hardResetQuizState]
+  );
 
   const handleNextQuestion = useCallback(() => {
     const total = Math.min(maxQuestions, quizQuestions.current.length);
@@ -251,7 +294,10 @@ const useMathGame = () => {
         setCorrectCountForCompletion((prev) => prev + 1);
 
         const today = new Date().toLocaleDateString();
-        const currentDailyCorrect = parseInt(localStorage.getItem(`math-daily-correct-${today}`) || '0', 10);
+        const currentDailyCorrect = parseInt(
+          localStorage.getItem(`math-daily-correct-${today}`) || '0',
+          10
+        );
         localStorage.setItem(`math-daily-correct-${today}`, currentDailyCorrect + 1);
 
         if (timeTaken <= 1.5) {
@@ -284,7 +330,7 @@ const useMathGame = () => {
 
       if (isCorrect) {
         setIsTimerPaused(false);
-        setQuizStartTime((prev) => prev + (Date.now() - pausedTime));
+        setQuizStartTime((prev) => (prev ? prev + (Date.now() - pausedTime) : prev));
       }
     },
     [
@@ -311,7 +357,7 @@ const useMathGame = () => {
   const resumeQuizAfterIntervention = useCallback(() => {
     setIsTimerPaused(false);
     if (pausedTime && quizStartTime) {
-      setQuizStartTime((prev) => prev + (Date.now() - pausedTime));
+      setQuizStartTime((prev) => (prev ? prev + (Date.now() - pausedTime) : prev));
     }
     handleNextQuestion();
   }, [handleNextQuestion, pausedTime, quizStartTime]);
@@ -332,8 +378,9 @@ const useMathGame = () => {
     setSelectedDifficulty(null);
     setTableProgress({});
     setCompletedSections({});
+    hardResetQuizState();
     navigate('/');
-  }, [navigate]);
+  }, [navigate, hardResetQuizState]);
 
   const handleNameChange = useCallback((e) => setChildName(e.target.value), []);
   const handleAgeChange = useCallback((e) => setChildAge(e.target.value), []);
@@ -372,7 +419,7 @@ const useMathGame = () => {
     correctCountForCompletion, setCorrectCountForCompletion,
     answerSymbols, setAnswerSymbols,
     currentQuestion, setCurrentQuestion,
-    currentQuestionIndex, setCurrentQuestionIndex, // expose (optional)
+    currentQuestionIndex, setCurrentQuestionIndex,
     lastQuestion, setLastQuestion,
     lastWhiteBeltNumber, setLastWhiteBeltNumber,
     quizStartTime, setQuizStartTime,

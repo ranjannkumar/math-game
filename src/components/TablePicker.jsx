@@ -1,38 +1,83 @@
 // src/components/TablePicker.jsx
-import React, { useContext, useState } from 'react';
+import React, { useContext, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MathGameContext } from '../App.jsx';
-import { FaArrowLeft } from 'react-icons/fa';
-import { tableBgColors, themeConfigs } from '../utils/mathGameLogic.js';
 
-const levels = [1, 2, 3, 4, 5, 6];
+const TOTAL_LEVELS = 6; // only 6 levels as required
+const COLOR_BELTS = ['white', 'yellow', 'green', 'blue', 'red', 'brown'];
 
-const fallbackEmojis = ['①', '②', '③', '④', '⑤', '⑥'];
-const fallbackNames = ['1', '2', '3', '4', '5', '6'];
+function readBeltProgressFromLS(level, belt) {
+  try {
+    const key = `math-table-progress-${level}-${belt}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    if (raw === 'completed') return { completed: true, perfectPerformance: false };
+    if (raw === 'perfect') return { completed: true, perfectPerformance: true };
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === 'object' ? obj : null;
+  } catch {
+    return null;
+  }
+}
+
+function areColorBeltsCompleted(level, tableProgress) {
+  const lvlKey = String(level);
+  return COLOR_BELTS.every((belt) => {
+    const ctx = tableProgress?.[lvlKey]?.[belt];
+    const ls = readBeltProgressFromLS(lvlKey, belt);
+    return !!(ctx?.completed || ls?.completed);
+  });
+}
+
+// OPTIONAL: require all 7 black degrees to unlock next level.
+// Toggle this to `true` if you want black required.
+const REQUIRE_BLACK_FOR_NEXT_LEVEL = false;
+
+function areAllBlackDegreesCompleted() {
+  try {
+    const raw = localStorage.getItem('math-completed-black-belt-degrees');
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return false;
+    // degrees 1..7 completed
+    for (let d = 1; d <= 7; d++) {
+      if (!arr.includes(d)) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const TablePicker = () => {
-  const { navigate, selectedTheme, setSelectedTable } = useContext(MathGameContext);
-  const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
-  const currentLevel = levels[currentLevelIndex];
+  const navigate = useNavigate();
+  const { selectedTable, setSelectedTable, tableProgress } = useContext(MathGameContext);
 
-  // Theme is optional; fall back cleanly
-  const themeCfg = selectedTheme?.key ? themeConfigs[selectedTheme.key] : null;
-  const tableEmojis = themeCfg?.tableEmojis || fallbackEmojis;
-  const tableNames = themeCfg?.tableNames || fallbackNames;
-  const tableColors = themeCfg?.tableColors || tableBgColors;
+  // Compute which levels are unlocked
+  const unlockedLevels = useMemo(() => {
+    const arr = new Array(TOTAL_LEVELS).fill(false);
+    arr[0] = true; // Level 1 always unlocked
 
-  const handleNextLevel = () => setCurrentLevelIndex((i) => (i + 1) % levels.length);
-  const handlePrevLevel = () => setCurrentLevelIndex((i) => (i - 1 + levels.length) % levels.length);
-  const handleBack = () => navigate('/theme');
+    for (let lvl = 2; lvl <= TOTAL_LEVELS; lvl++) {
+      const prev = lvl - 1;
 
-  const startQuiz = (tableNumber) => {
-    // Just select a level and proceed to belts; everything else is optional
-    setSelectedTable(tableNumber);
+      const colorDone = areColorBeltsCompleted(prev, tableProgress);
+      const blackOk = REQUIRE_BLACK_FOR_NEXT_LEVEL ? areAllBlackDegreesCompleted() : true;
+
+      arr[lvl - 1] = colorDone && blackOk;
+    }
+    return arr;
+  }, [tableProgress]);
+
+  const handleSelect = (levelIndex) => {
+    if (!unlockedLevels[levelIndex]) return;
+    const lvl = levelIndex + 1;
+    setSelectedTable(lvl);
     navigate('/belts');
   };
 
   return (
     <div
-      className="min-h-screen w-full relative px-1 sm:px-2 md:px-4 lg:px-6 flex flex-col items-center justify-center"
+      className="min-h-screen w-full px-4 py-6 flex flex-col items-center"
       style={{
         backgroundImage: "url('/night_sky_landscape.jpg')",
         backgroundSize: 'cover',
@@ -40,50 +85,50 @@ const TablePicker = () => {
         backgroundRepeat: 'no-repeat',
       }}
     >
-      <div className="absolute inset-0 bg-black/30 z-0"></div>
-
-      <button
-        className="fixed top-1 sm:top-2 md:top-4 left-1 sm:left-2 md:left-4 z-50 bg-white/80 hover:bg-gray-200 text-gray-700 rounded-full p-1 sm:p-1.5 md:p-3 shadow-lg border-2 sm:border-3 md:border-4 border-gray-400 transition-all duration-300 transform hover:scale-110 active:scale-95"
-        style={{ fontSize: 'clamp(0.6rem, 2.5vw, 1.5rem)' }}
-        onClick={handleBack}
-        aria-label="Back to Theme Picker"
-      >
-        <FaArrowLeft size={16} />
-      </button>
-
-      <div className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto pt-2 sm:pt-4 md:pt-6 lg:pt-8">
-        <div className="w-full max-w-md">
-          <div
-            className="rounded-3xl p-6 sm:p-8 shadow-2xl border border-gray-300/40 bg-white/90"
-            style={{ backgroundColor: tableColors[currentLevel - 1] }}
+      <div className="w-full max-w-5xl">
+        <div className="flex items-center justify-between mb-6">
+          <button
+            className="bg-white/80 hover:bg-white text-gray-800 font-semibold px-4 py-2 rounded-xl shadow transition"
+            onClick={() => navigate('/theme')}
           >
-            <div className="text-center">
-              <div className="text-6xl sm:text-7xl mb-2">{tableEmojis[currentLevel - 1]}</div>
-              <div className="text-2xl sm:text-3xl font-bold mb-6">Level {tableNames[currentLevel - 1]}</div>
+            ⟵ Themes
+          </button>
+          <h1 className="text-white text-3xl font-extrabold drop-shadow">Choose a Level</h1>
+          <div className="w-[92px]" />
+        </div>
 
-              <div className="flex justify-between mb-4">
-                <button
-                  onClick={handlePrevLevel}
-                  className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-xl font-bold"
-                >
-                  ◀
-                </button>
-                <button
-                  onClick={handleNextLevel}
-                  className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-xl font-bold"
-                >
-                  ▶
-                </button>
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: TOTAL_LEVELS }).map((_, idx) => {
+            const levelNumber = idx + 1;
+            const unlocked = unlockedLevels[idx];
+            const lockedBadge = unlocked ? '🔓' : '🔒';
 
+            // quick visual state
+            const donePrev =
+              idx === 0 ? true : areColorBeltsCompleted(levelNumber - 1, tableProgress);
+
+            return (
               <button
-                onClick={() => startQuiz(currentLevel)}
-                className="bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-8 rounded-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg"
+                key={levelNumber}
+                onClick={() => handleSelect(idx)}
+                className={`relative rounded-2xl p-6 bg-white/90 shadow-xl hover:bg-white transition text-left ${
+                  unlocked ? '' : 'opacity-60 grayscale cursor-not-allowed'
+                }`}
               >
-                Choose Level {currentLevel}
+                <div className="absolute top-2 right-3 text-xl">{lockedBadge}</div>
+                <div className="text-3xl font-extrabold mb-2">Level {levelNumber}</div>
+                <div className="text-gray-700">
+                  {levelNumber === 1 ? (
+                    <span>Start here</span>
+                  ) : donePrev ? (
+                    <span>Ready to play</span>
+                  ) : (
+                    <span>Finish Level {levelNumber - 1} belts to unlock</span>
+                  )}
+                </div>
               </button>
-            </div>
-          </div>
+            );
+          })}
         </div>
       </div>
     </div>
