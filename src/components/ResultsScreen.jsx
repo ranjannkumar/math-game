@@ -1,5 +1,5 @@
 // src/components/ResultsScreen.jsx
-import React, { useEffect, useContext, useRef } from 'react';
+import React, { useEffect, useContext, useRef, useState } from 'react';
 import Confetti from 'react-confetti';
 import { showShootingStars, clearShootingStars } from '../utils/mathGameLogic';
 import { MathGameContext } from '../App.jsx';
@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 
 const ResultsScreen = () => {
   const navigate = useNavigate();
+  const [leaving, setLeaving] = useState(false);
 
   const {
     selectedDifficulty,
@@ -15,13 +16,12 @@ const ResultsScreen = () => {
 
     setShowResult,
 
+    // belt progress (colored belts)
     setTableProgress,
     tableProgress,
 
-    // black-belt state
-    unlockedDegrees,
+    // black belt state
     setUnlockedDegrees,
-    completedBlackBeltDegrees,
     setCompletedBlackBeltDegrees,
   } = useContext(MathGameContext);
 
@@ -29,69 +29,81 @@ const ResultsScreen = () => {
   const degree = isBlack ? parseInt(String(selectedDifficulty).split('-')[1] || '1', 10) : null;
 
   const maxQuestions =
-    isBlack ? (degree === 7 ? 30 : 20) :
-    selectedDifficulty === 'brown' ? 10 : 10;
+    isBlack ? (degree === 7 ? 30 : 20) : 10;
 
   const allCorrect = correctCount === maxQuestions;
 
-  // Persist completion for color belts
+  // === Persist completion for COLORED BELTS exactly once ===
+  const persistedColoredRef = useRef(false);
   useEffect(() => {
+    if (persistedColoredRef.current) return;
     if (!selectedTable || !selectedDifficulty || isBlack) return;
 
     const levelKey = String(selectedTable);
     const beltKey = String(selectedDifficulty);
-    const perfect = allCorrect;
+    const lsKey = `math-table-progress-${levelKey}-${beltKey}`;
 
-    try {
-      const lsKey = `math-table-progress-${levelKey}-${beltKey}`;
-      localStorage.setItem(lsKey, perfect ? 'perfect' : 'completed');
-    } catch {}
+    // If LS already has an entry OR state already marked completed, do nothing
+    const alreadyInLS = !!localStorage.getItem(lsKey);
+    const alreadyInState = !!(tableProgress?.[levelKey]?.[beltKey]?.completed);
 
-    try {
-      const prev = tableProgress || {};
-      const lvl = prev[levelKey] || {};
-      const updated = {
-        ...prev,
-        [levelKey]: {
-          ...lvl,
-          [beltKey]: { completed: true, perfectPerformance: perfect },
-        },
-      };
-      setTableProgress(updated);
-    } catch {}
-  }, [isBlack, selectedTable, selectedDifficulty, allCorrect, setTableProgress, tableProgress]);
-
-  // Persist completion & unlock next degree for black
-  useEffect(() => {
-    if (!isBlack || !degree) return;
-
-    // Add to completed list
-    if (!completedBlackBeltDegrees.includes(degree)) {
-      const updatedCompleted = [...completedBlackBeltDegrees, degree].sort((a, b) => a - b);
-      setCompletedBlackBeltDegrees(updatedCompleted);
-      localStorage.setItem('math-completed-black-belt-degrees', JSON.stringify(updatedCompleted));
+    if (alreadyInLS || alreadyInState) {
+      persistedColoredRef.current = true;
+      return;
     }
 
-    // Ensure current degree is in unlocked list too (idempotent)
-    const lsRaw = localStorage.getItem('math-unlocked-degrees');
-    const lsArr = lsRaw ? (() => { try { return JSON.parse(lsRaw); } catch { return []; } })() : [];
-    const base = Array.from(new Set([...(unlockedDegrees || []), ...(lsArr || []), degree])).sort((a,b)=>a-b);
+    try {
+      localStorage.setItem(lsKey, allCorrect ? 'perfect' : 'completed');
+    } catch {}
 
-    // Unlock next
-    const next = degree + 1;
-    if (next <= 7 && !base.includes(next)) base.push(next);
+    // Functional update to avoid including tableProgress in deps
+    setTableProgress((prev = {}) => {
+      const prevBelt = prev?.[levelKey]?.[beltKey];
+      if (prevBelt?.completed) return prev; // idempotent
 
-    const normalized = Array.from(new Set(base)).sort((a, b) => a - b);
-    setUnlockedDegrees(normalized);
-    localStorage.setItem('math-unlocked-degrees', JSON.stringify(normalized));
-  }, [
-    isBlack,
-    degree,
-    unlockedDegrees,
-    setUnlockedDegrees,
-    completedBlackBeltDegrees,
-    setCompletedBlackBeltDegrees,
-  ]);
+      const levelObj = prev[levelKey] || {};
+      return {
+        ...prev,
+        [levelKey]: {
+          ...levelObj,
+          [beltKey]: { completed: true, perfectPerformance: allCorrect },
+        },
+      };
+    });
+
+    persistedColoredRef.current = true;
+  }, [selectedTable, selectedDifficulty, isBlack, allCorrect, setTableProgress, tableProgress]);
+
+  // === Persist completion & unlock NEXT degree for BLACK exactly once ===
+  const persistedBlackRef = useRef(false);
+  useEffect(() => {
+    if (persistedBlackRef.current) return;
+    if (!isBlack || !degree) return;
+
+    // Add this degree to completed list (functional)
+    setCompletedBlackBeltDegrees((prev = []) => {
+      if (prev.includes(degree)) return prev;
+      const updated = [...prev, degree].sort((a, b) => a - b);
+      try {
+        localStorage.setItem('math-completed-black-belt-degrees', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // Ensure current degree is unlocked + unlock (degree + 1) if <= 7
+    setUnlockedDegrees((prev = []) => {
+      let base = Array.from(new Set([...prev, degree]));
+      const next = degree + 1;
+      if (next <= 7) base = Array.from(new Set([...base, next]));
+      base.sort((a, b) => a - b);
+      try {
+        localStorage.setItem('math-unlocked-degrees', JSON.stringify(base));
+      } catch {}
+      return base;
+    });
+
+    persistedBlackRef.current = true;
+  }, [isBlack, degree, setUnlockedDegrees, setCompletedBlackBeltDegrees]);
 
   // Shooting stars once
   const starsShownRef = useRef(false);
@@ -103,9 +115,9 @@ const ResultsScreen = () => {
     return () => clearShootingStars();
   }, [allCorrect]);
 
-  const getBeltName = (difficulty) => {
-    if (String(difficulty).startsWith('black')) return `Black (Degree ${degree})`;
-    switch (difficulty) {
+  const beltName = (() => {
+    if (isBlack) return `Black (Degree ${degree})`;
+    switch (selectedDifficulty) {
       case 'white': return 'White';
       case 'yellow': return 'Yellow';
       case 'green': return 'Green';
@@ -114,14 +126,17 @@ const ResultsScreen = () => {
       case 'brown': return 'Brown';
       default: return 'Unknown';
     }
-  };
+  })();
 
   const handlePrimary = () => {
+    // hide results immediately so destination page shows
     setShowResult(false);
-    navigate(isBlack ? '/black' : '/belts');
+    clearShootingStars();
+    setLeaving(true);
+    navigate(isBlack ? '/black' : '/belts', { replace: true });
   };
 
-  const beltName = getBeltName(selectedDifficulty);
+  if (leaving) return null;
 
   return (
     <div
