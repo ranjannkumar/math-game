@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 
-const QuizScreen = ({ currentQuestion, quizProgress, answerSymbols, handleAnswer, isAnimating, showResult, selectedDifficulty }) => {
+const QuizScreen = ({ currentQuestion, quizProgress, answerSymbols, handleAnswer, isAnimating, showResult, selectedDifficulty, isTimerPaused }) => {
   const answerRefs = useRef([]);
 
   useEffect(() => {
@@ -9,7 +9,7 @@ const QuizScreen = ({ currentQuestion, quizProgress, answerSymbols, handleAnswer
     }
   }, [currentQuestion]);
   
-  const maxQuestions = selectedDifficulty === 'brown' ? 10 : (selectedDifficulty && selectedDifficulty.startsWith('black')) ? 20 : 10;
+  const maxQuestions = selectedDifficulty === 'brown' ? 10 : (selectedDifficulty && selectedDifficulty.startsWith('black')) ? (selectedDifficulty === 'black-7' ? 30 : 20) : 10;
 
   return (
     <div
@@ -64,9 +64,9 @@ const QuizScreen = ({ currentQuestion, quizProgress, answerSymbols, handleAnswer
                   key={index}
                   ref={answerRefs.current[index]}
                   onClick={() => handleAnswer(answer, index)}
-                  disabled={isAnimating || !currentQuestion || showResult}
+                  disabled={isAnimating || !currentQuestion || showResult || isTimerPaused}
                   className={`w-full bg-gray-200/80 border-gray-300/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 border-2 no-transition ${
-                    isAnimating || !currentQuestion || showResult ? 'opacity-50 cursor-not-allowed' : ''
+                    isAnimating || !currentQuestion || showResult || isTimerPaused ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
                   <div className="text-xl sm:text-2xl md:text-3xl font-baloo text-gray-800 drop-shadow-md" style={{ fontFamily: 'Baloo 2, Comic Neue, cursive', letterSpacing: 2 }}>

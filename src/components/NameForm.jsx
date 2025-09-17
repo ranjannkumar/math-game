@@ -19,6 +19,8 @@ const NameForm = ({ setScreen, setShowPreTestPopup, setPreTestSection, childName
     if (associatedName) {
       localStorage.setItem('math-child-name', associatedName);
       setChildName(associatedName);
+      setShowPreTestPopup(true);
+      setPreTestSection('addition');
     }
     
     setScreen('theme');

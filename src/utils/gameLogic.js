@@ -132,7 +132,7 @@ export const themeConfigs = {
     image: '/farm.jpg',
     tableEmojis: ['🐮', '🐷', '🐔', '🐴', '🐑', '🦆', '🦃', '🐐', '🐓', '🐇', '🐕', '🐈'],
     tableNames: ['Cow', 'Pig', 'Chicken', 'Horse', 'Sheep', 'Duck', 'Turkey', 'Goat', 'Rooster', 'Rabbit', 'Dog', 'Cat'],
-    tableColors: ['bg-yellow-300 border-yellow-500', 'bg-green-300 border-green-500', 'bg-orange-300 border-orange-500', 'bg-pink-300 border-pink-500', 'bg-blue-300 border-blue-500', 'bg-purple-300 border-purple-500', 'bg-gray-300 border-gray-500', 'bg-red-300 border-red-500', 'bg-teal-300 border-teal-500', 'bg-lime-300 border-lime-500', 'bg-amber-300 border-amber-500', 'bg-cyan-300 border-cyan-500']
+    tableColors: ['bg-yellow-300 border-yellow-500', 'bg-green-300 border-green-500', 'bg-orange-300 border-orange-500', 'bg-pink-300 border-pink-500', 'bg-blue-300 border-blue-500', 'bg-purple-300 border-purple-500', 'bg-gray-300 border-gray-500', 'bg-red-300 border-red-500', 'bg-teal-300 border-teal-600', 'bg-lime-300 border-lime-500', 'bg-amber-300 border-amber-500', 'bg-cyan-300 border-cyan-500']
   },
   dinosaurs: {
     bg: 'from-green-400 via-yellow-200 to-green-700',
@@ -546,66 +546,51 @@ export const beltFacts = {
   }, ]
 };
 
+const allFacts = Object.values(beltFacts).flat();
+
 const getQuestionsForLevel = (difficulty, table) => {
-  const allQuestions = [];
-  const addQuestions = (questions) => {
-    questions.forEach(q => {
-      const existing = allQuestions.find(eq => eq.question === q.question);
-      if (!existing) {
-        allQuestions.push(q);
-      }
-    });
-  };
-  
-  if (difficulty === 'white') {
-    if (table >= 1 && table <= 6) {
-      addQuestions(beltFacts.white.slice(0, table * 2));
-    }
-  } else if (difficulty === 'yellow') {
-    if (table >= 1 && table <= 6) {
-      addQuestions(beltFacts.yellow.slice(0, table * 2));
-      addQuestions(beltFacts.white);
-    }
-  } else if (difficulty === 'green') {
-    if (table >= 1 && table <= 6) {
-      addQuestions(beltFacts.green.slice(0, table * 2));
-      addQuestions(beltFacts.yellow);
-      addQuestions(beltFacts.white);
-    }
-  } else if (difficulty === 'blue') {
-    if (table >= 1 && table <= 6) {
-      addQuestions(beltFacts.blue.slice(0, table * 2));
-      addQuestions(beltFacts.green);
-      addQuestions(beltFacts.yellow);
-      addQuestions(beltFacts.white);
-    }
-  } else if (difficulty === 'red') {
-    if (table >= 1 && table <= 6) {
-      addQuestions(beltFacts.red.slice(0, table * 2));
-      addQuestions(beltFacts.blue);
-      addQuestions(beltFacts.green);
-      addQuestions(beltFacts.yellow);
-      addQuestions(beltFacts.white);
-    }
-  } else if (difficulty === 'brown') {
-    if (table >= 1 && table <= 6) {
-      addQuestions(beltFacts.brown.slice(0, table * 2));
-      addQuestions(beltFacts.red);
-      addQuestions(beltFacts.blue);
-      addQuestions(beltFacts.green);
-      addQuestions(beltFacts.yellow);
-      addQuestions(beltFacts.white);
-    }
-  } else if (difficulty && difficulty.startsWith('black')) {
-    addQuestions(beltFacts.brown);
-    addQuestions(beltFacts.red);
-    addQuestions(beltFacts.blue);
-    addQuestions(beltFacts.green);
-    addQuestions(beltFacts.yellow);
+  if (difficulty.startsWith('black')) {
+    const allQuestions = [];
+    const addQuestions = (questions) => {
+      questions.forEach(q => {
+        const existing = allQuestions.find(eq => eq.question === q.question);
+        if (!existing) {
+          allQuestions.push(q);
+        }
+      });
+    };
+    
+    // For black belt, all previous belt questions are included.
     addQuestions(beltFacts.white);
+    addQuestions(beltFacts.yellow);
+    addQuestions(beltFacts.green);
+    addQuestions(beltFacts.blue);
+    addQuestions(beltFacts.red);
+    addQuestions(beltFacts.brown);
+
+    // Filter to questions for the specific level (table)
+    const questionsForTable = allQuestions.filter(q => {
+      const parts = q.question.split(' + ').map(Number);
+      return parts.includes(table);
+    });
+
+    return questionsForTable;
   }
 
-  return allQuestions;
+  const newFactsForBelt = beltFacts[difficulty].filter(q => q.question.split(' + ').map(Number).includes(table));
+  const newQuestions = newFactsForBelt.slice(0, 2);
+
+  const previousBeltQuestions = [];
+  if (difficulty === 'yellow') previousBeltQuestions.push(...beltFacts.white);
+  if (difficulty === 'green') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow);
+  if (difficulty === 'blue') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow, ...beltFacts.green);
+  if (difficulty === 'red') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow, ...beltFacts.green, ...beltFacts.blue);
+  if (difficulty === 'brown') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow, ...beltFacts.green, ...beltFacts.blue, ...beltFacts.red);
+
+  const remainingQuestions = previousBeltQuestions.sort(() => 0.5 - Math.random());
+  
+  const allQuestions = [...newQuestions, ...remainingQuestions];
+  return allQuestions.slice(0, 10);
 };
 
 export function generateBeltQuestion(difficulty, totalQuestions, askedQuestions, lastQuestion, selectedTable = null) {
@@ -629,12 +614,8 @@ export function generateBeltQuestion(difficulty, totalQuestions, askedQuestions,
     attempts++;
   } while ((nextQuestion.question === lastQuestion || askedQuestions.has(nextQuestion.question)) && attempts < maxAttempts);
 
-  if (!nextQuestion) {
-    nextQuestion = questionsForLevel[0];
-  }
-
-  if (nextQuestion.question === lastQuestion) {
-    const availableQuestions = questionsForLevel.filter(q => q.question !== lastQuestion);
+  if (!nextQuestion || nextQuestion.question === lastQuestion) {
+    const availableQuestions = questionsForLevel.filter(q => q.question !== lastQuestion && !askedQuestions.has(q.question));
     if (availableQuestions.length > 0) {
       nextQuestion = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
     } else {
@@ -651,48 +632,34 @@ export function generateBeltQuestion(difficulty, totalQuestions, askedQuestions,
 }
 
 export function getLearningModuleContent(difficulty, selectedTable) {
-  if (difficulty === 'white') {
-    if (selectedTable === 1) return '0 + 0 = 0';
-    if (selectedTable === 2) return '1 + 1 = 2';
-    if (selectedTable === 3) return '0 + 6 = 6\n\n\n6 + 0 = 6';
-    if (selectedTable === 4) return '1 + 6 = 7\n\n\n6 + 1 = 7';
-    if (selectedTable === 5) return '2 + 6 = 8\n\n\n6 + 2 = 8';
-    if (selectedTable === 6) return '3 + 6 = 9\n\n\n6 + 3 = 9';
-  } else if (difficulty === 'yellow') {
-    if (selectedTable === 1) return '0 + 1 = 1\n\n\n1 + 0 = 1';
-    if (selectedTable === 2) return '1 + 2 = 3\n\n\n2 + 1 = 3';
-    if (selectedTable === 3) return '0 + 7 = 7\n\n\n7 + 0 = 7';
-    if (selectedTable === 4) return '1 + 7 = 8\n\n\n7 + 1 = 8';
-    if (selectedTable === 5) return '2 + 7 = 9\n\n\n7 + 2 = 9';
-    if (selectedTable === 6) return '3 + 7 = 10\n\n\n7 + 3 = 10';
-  } else if (difficulty === 'green') {
-    if (selectedTable === 1) return '0 + 2 = 2\n\n\n2 + 0 = 2';
-    if (selectedTable === 2) return '1 + 3 = 4\n\n\n3 + 1 = 4';
-    if (selectedTable === 3) return '0 + 8 = 8\n\n\n8 + 0 = 8';
-    if (selectedTable === 4) return '1 + 8 = 9\n\n\n8 + 1 = 9';
-    if (selectedTable === 5) return '2 + 8 = 10\n\n\n8 + 2 = 10';
-    if (selectedTable === 6) return '4 + 4 = 8';
-  } else if (difficulty === 'blue') {
-    if (selectedTable === 1) return '0 + 3 = 3\n\n\n3 + 0 = 3';
-    if (selectedTable === 2) return '1 + 4 = 5\n\n\n4 + 1 = 5';
-    if (selectedTable === 3) return '0 + 9 = 9\n\n\n9 + 0 = 9';
-    if (selectedTable === 4) return '1 + 9 = 10\n\n\n9 + 1 = 10';
-    if (selectedTable === 5) return '3 + 3 = 6';
-    if (selectedTable === 6) return '4 + 5 = 9\n\n\n5 + 4 = 9';
-  } else if (difficulty === 'red') {
-    if (selectedTable === 1) return '0 + 4 = 4\n\n\n4 + 0 = 4';
-    if (selectedTable === 2) return '2 + 2 = 4';
-    if (selectedTable === 3) return '0 + 10 = 10\n\n\n10 + 0 = 10';
-    if (selectedTable === 4) return '2 + 4 = 6\n\n\n4 + 2 = 6';
-    if (selectedTable === 5) return '3 + 4 = 7\n\n\n4 + 3 = 7';
-    if (selectedTable === 6) return '4 + 6 = 10\n\n\n6 + 4 = 10';
-  } else if (difficulty === 'brown') {
-    if (selectedTable === 1) return '0 + 5 = 5\n\n\n5 + 0 = 5';
-    if (selectedTable === 2) return '2 + 3 = 5\n\n\n3 + 2 = 5';
-    if (selectedTable === 3) return '1 + 5 = 6\n\n\n5 + 1 = 6';
-    if (selectedTable === 4) return '2 + 5 = 7\n\n\n5 + 2 = 7';
-    if (selectedTable === 5) return '3 + 5 = 8\n\n\n5 + 3 = 8';
-    if (selectedTable === 6) return '5 + 5 = 10';
+  const difficultyFacts = beltFacts[difficulty];
+  if (!difficultyFacts) return '';
+  const factsForTable = difficultyFacts.filter(fact => {
+      const parts = fact.question.split(' + ').map(Number);
+      return parts.includes(selectedTable);
+  });
+  if (factsForTable.length > 0) {
+      return factsForTable.map(f => `${f.question} = ${f.correctAnswer}`).join('\n\n\n');
   }
   return '';
+}
+
+export function generatePreTestQuestion(askedQuestions) {
+  const questions = [
+    { question: '1 + 4', correctAnswer: 5 },
+    { question: '2 + 3', correctAnswer: 5 },
+    { question: '3 + 2', correctAnswer: 5 },
+    { question: '4 + 1', correctAnswer: 5 },
+    { question: '0 + 5', correctAnswer: 5 },
+    { question: '5 + 0', correctAnswer: 5 }
+  ];
+  const availableQuestions = questions.filter(q => !askedQuestions.has(q.question));
+  if (availableQuestions.length === 0) {
+    return null;
+  }
+  const nextQuestion = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+  return {
+    ...nextQuestion,
+    answers: generateAnswers(nextQuestion.correctAnswer)
+  };
 }

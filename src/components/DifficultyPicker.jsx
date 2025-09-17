@@ -4,6 +4,45 @@ import { FaArrowLeft } from 'react-icons/fa';
 import DailyStatsCounter from './ui/DailyStatsCounter';
 import SessionTimer from './ui/SessionTimer';
 
+const BlackBeltDegreesModal = ({
+  selectedTable,
+  unlockedDegrees,
+  startQuizWithDifficulty,
+  setShowBlackBeltDegrees
+}) => {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-fade-in">
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 sm:p-8 shadow-2xl max-w-lg w-full relative">
+        <button
+          onClick={() => setShowBlackBeltDegrees(false)}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
+        >
+          ×
+        </button>
+        <h2 className="text-2xl sm:text-3xl font-baloo text-blue-700 mb-6 text-center">Black Belt Degrees</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7].map(degree => (
+            <button
+              key={degree}
+              onClick={() => {
+                if (unlockedDegrees.includes(degree)) {
+                  startQuizWithDifficulty(`black-${degree}`);
+                  setShowBlackBeltDegrees(false);
+                }
+              }}
+              className={`py-4 px-2 rounded-xl text-center font-bold text-white transition-transform duration-200 transform hover:scale-105 ${unlockedDegrees.includes(degree) ? 'bg-black' : 'bg-gray-400 cursor-not-allowed'}`}
+              disabled={!unlockedDegrees.includes(degree)}
+            >
+              Degree {degree}
+              {!unlockedDegrees.includes(degree) && <div className="absolute top-1 right-1 text-lg">🔒</div>}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const DifficultyPicker = ({ 
   sessionTimerActive, sessionTimerStart, sessionTimerPaused, sessionTimerPauseStart, sessionTimerAccumulated,
   selectedTable, setShowDifficultyPicker, setCurrentPage, startQuizWithDifficulty, isBlackUnlocked,
@@ -238,6 +277,15 @@ const DifficultyPicker = ({
         <DailyStatsCounter style={{ background: 'none', boxShadow: 'none', position: 'static' }} />
         <SessionTimer isActive={sessionTimerActive} startTime={sessionTimerStart} style={{ position: 'static' }} isPaused={sessionTimerPaused} pauseStartTime={sessionTimerPauseStart} accumulatedTime={sessionTimerAccumulated} />
       </div>
+
+      {showBlackBeltDegrees && (
+        <BlackBeltDegreesModal
+          selectedTable={selectedTable}
+          unlockedDegrees={unlockedDegrees}
+          startQuizWithDifficulty={startQuizWithDifficulty}
+          setShowBlackBeltDegrees={setShowBlackBeltDegrees}
+        />
+      )}
     </div>
   );
 };

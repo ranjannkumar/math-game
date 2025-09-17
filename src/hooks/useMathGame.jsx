@@ -1,6 +1,6 @@
 // src/hooks/useMathGame.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { generateBeltQuestion, getLearningModuleContent } from '../utils/gameLogic';
+import { generateBeltQuestion, getLearningModuleContent, beltFacts } from '../utils/gameLogic';
 import audioManager from '../utils/audioUtils';
 
 const useMathGame = () => {
@@ -55,8 +55,14 @@ const useMathGame = () => {
   });
   const [isBlackUnlocked, setIsBlackUnlocked] = useState(false);
   const [showBlackBeltDegrees, setShowBlackBeltDegrees] = useState(false);
-  const [unlockedDegrees, setUnlockedDegrees] = useState([1]);
-  const [completedBlackBeltDegrees, setCompletedBlackBeltDegrees] = useState([]);
+  const [unlockedDegrees, setUnlockedDegrees] = useState(() => {
+    const saved = localStorage.getItem('math-unlocked-degrees');
+    return saved ? JSON.parse(saved) : [1];
+  });
+  const [completedBlackBeltDegrees, setCompletedBlackBeltDegrees] = useState(() => {
+    const saved = localStorage.getItem('math-completed-black-belt-degrees');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [currentDegree, setCurrentDegree] = useState(1);
   const [tableProgress, setTableProgress] = useState({});
   const [showSpeedTest, setShowSpeedTest] = useState(false);
@@ -77,8 +83,9 @@ const useMathGame = () => {
   const timeoutRef = useRef(null);
   const questionTimeoutId = useRef(null);
   const answeredQuestions = useRef(new Set());
+  const questionStartTimestamp = useRef(0);
 
-  const maxQuestions = selectedDifficulty === 'brown' ? 10 : (selectedDifficulty && selectedDifficulty.startsWith('black')) ? 20 : 10;
+  const maxQuestions = selectedDifficulty === 'brown' ? 10 : (selectedDifficulty && selectedDifficulty.startsWith('black')) ? (selectedDifficulty === 'black-7' ? 30 : 20) : 10;
   
   useEffect(() => {
     const today = new Date().toDateString();
@@ -122,27 +129,98 @@ const useMathGame = () => {
   useEffect(() => {
     localStorage.setItem('math-completed-sections', JSON.stringify(completedSections));
   }, [completedSections]);
+  
+  useEffect(() => {
+    localStorage.setItem('math-unlocked-degrees', JSON.stringify(unlockedDegrees));
+  }, [unlockedDegrees]);
+  
+  useEffect(() => {
+    localStorage.setItem('math-completed-black-belt-degrees', JSON.stringify(completedBlackBeltDegrees));
+  }, [completedBlackBeltDegrees]);
+
 
   const handleNextQuestion = useCallback(() => {
-    const newTotalQuestions = answeredQuestions.current.size + 1;
-    if (newTotalQuestions >= maxQuestions) {
+    if (answeredQuestions.current.size >= maxQuestions) {
       setShowResult(true);
-      audioManager.playCompleteSound();
+      if (correctCount === maxQuestions) {
+          audioManager.playCompleteSound();
+          if (selectedDifficulty && selectedDifficulty.startsWith('black')) {
+            const currentDegree = parseInt(selectedDifficulty.split('-')[1]);
+            const nextDegree = currentDegree + 1;
+            if (nextDegree <= 7 && !unlockedDegrees.includes(nextDegree)) {
+              setUnlockedDegrees(prev => [...prev, nextDegree]);
+            }
+            if (!completedBlackBeltDegrees.includes(currentDegree)) {
+              setCompletedBlackBeltDegrees(prev => [...prev, currentDegree]);
+            }
+            if (currentDegree === 7) {
+              // Move to next level
+              const nextLevel = selectedTable + 1;
+              localStorage.setItem('math-unlocked-level', nextLevel);
+              setTimeout(() => {
+                setCurrentPage('picker');
+                setScreen('main');
+              }, 5000);
+            }
+          } else {
+            const currentTableProgress = tableProgress[selectedTable] || {};
+            const nextBeltIndex = ['white', 'yellow', 'green', 'blue', 'red', 'brown'].indexOf(selectedDifficulty) + 1;
+            const nextBelt = ['white', 'yellow', 'green', 'blue', 'red', 'brown'][nextBeltIndex];
+            if (nextBelt) {
+              localStorage.setItem(`math-table-progress-${selectedTable}-${nextBelt}`, JSON.stringify({ perfectPerformance: true, completed: true }));
+              setTableProgress(prev => ({ ...prev, [selectedTable]: { ...prev[selectedTable], [nextBelt]: { perfectPerformance: true, completed: true } } }));
+            }
+          }
+      }
       return;
     }
-    const newQuestion = generateBeltQuestion(selectedDifficulty, answeredQuestions.current.size, answeredQuestions.current, lastQuestion, selectedTable);
+    
+    let newQuestion;
+    const currentQuestionCount = answeredQuestions.current.size;
+    
+    if (beltFacts[selectedDifficulty] && currentQuestionCount < beltFacts[selectedDifficulty].length * 2) {
+      const factIndex = Math.floor(currentQuestionCount / 2);
+      const fact = beltFacts[selectedDifficulty][factIndex];
+      newQuestion = {
+        question: fact.question,
+        correctAnswer: fact.correctAnswer,
+        answers: generateAnswers(fact.correctAnswer)
+      };
+    } else {
+      const allQuestions = Object.values(beltFacts).flat();
+      const availableQuestions = allQuestions.filter(q => !answeredQuestions.current.has(q.question));
+      
+      let attempts = 0;
+      do {
+        newQuestion = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+        attempts++;
+      } while (newQuestion.question === lastQuestion && attempts < 100);
+    }
+    
     setCurrentQuestion(newQuestion);
     answeredQuestions.current.add(newQuestion.question);
     setLastQuestion(newQuestion.question);
+    questionStartTimestamp.current = Date.now();
     startQuestionTimer();
-  }, [selectedDifficulty, selectedTable, lastQuestion, maxQuestions]);
+  }, [selectedDifficulty, maxQuestions, correctCount, unlockedDegrees, completedBlackBeltDegrees, selectedTable, tableProgress, lastQuestion]);
 
   const handleTimeout = useCallback(() => {
     if (!currentQuestion) return;
     setWrongCount(prev => prev + 1);
     audioManager.playWrongSound();
-    handleNextQuestion();
-  }, [currentQuestion, handleNextQuestion]);
+    
+    setAnswerSymbols(prev => [...prev, { symbol: '❌', isCorrect: false, timeTaken: 5 }]);
+    
+    setIsTimerPaused(true);
+    setPausedTime(Date.now());
+
+    // Show Learning Module on inactivity
+    const content = getLearningModuleContent(selectedDifficulty, selectedTable);
+    setLearningModuleContent(content);
+    setPendingDifficulty(selectedDifficulty);
+    setShowLearningModule(true);
+    
+  }, [currentQuestion, selectedDifficulty, selectedTable]);
 
   const startQuestionTimer = useCallback(() => {
     if (questionTimeoutId.current) {
@@ -153,6 +231,28 @@ const useMathGame = () => {
     }, 5000);
   }, [handleTimeout]);
   
+  const generateAnswers = (correctAnswer) => {
+    const answers = [correctAnswer];
+    while (answers.length < 4) {
+      let wrongAnswer;
+      if (correctAnswer <= 10) {
+        wrongAnswer = correctAnswer + Math.floor(Math.random() * 11) - 5;
+      } else {
+        wrongAnswer = correctAnswer + Math.floor(Math.random() * 9) - 4;
+      }
+      if (wrongAnswer !== correctAnswer &&
+        wrongAnswer >= 0 &&
+        wrongAnswer <= 25 &&
+        !answers.includes(wrongAnswer)) {
+        answers.push(wrongAnswer);
+      }
+    }
+    for (let i = answers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [answers[i], answers[j]] = [answers[j], answers[i]];
+    }
+    return answers;
+  };
 
   const completeSpeedTest = useCallback(() => {
     const avgTime = speedTestTimes.slice(0, 5).reduce((sum, time) => sum + time, 0) / 5;
@@ -203,22 +303,45 @@ const useMathGame = () => {
     }
     if (!currentQuestion) return;
     setIsAnimating(true);
+    
     const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
-    const timeTaken = (Date.now() - quizStartTime) / 1000;
+    const timeTaken = (Date.now() - questionStartTimestamp.current) / 1000;
+    
     setQuestionTimes(times => [...times, timeTaken]);
+
     if (isCorrect) {
       setCorrectCount(c => c + 1);
       audioManager.playCorrectSound();
       setQuizProgress(prev => Math.min(prev + (100 / maxQuestions), 100));
+
+      if (timeTaken <= 1.5) {
+        setAnswerSymbols(prev => [...prev, { symbol: '⚡', isCorrect: true, timeTaken }]);
+      } else if (timeTaken <= 2) {
+        setAnswerSymbols(prev => [...prev, { symbol: '⭐', isCorrect: true, timeTaken }]);
+      } else if (timeTaken <= 5) {
+        setAnswerSymbols(prev => [...prev, { symbol: '✓', isCorrect: true, timeTaken }]);
+      } else {
+        setAnswerSymbols(prev => [...prev, { symbol: '❌', isCorrect: true, timeTaken }]);
+      }
+
     } else {
       setWrongCount(w => w + 1);
       audioManager.playWrongSound();
+      setAnswerSymbols(prev => [...prev, { symbol: '❌', isCorrect: false, timeTaken }]);
+      setIsTimerPaused(true);
+      setPausedTime(Date.now());
     }
+    
     setTimeout(() => {
       setIsAnimating(false);
       handleNextQuestion();
     }, 500);
-  }, [currentQuestion, isAnimating, showResult, quizStartTime, handleNextQuestion, maxQuestions]);
+
+    if (isCorrect) {
+      setIsTimerPaused(false);
+      setQuizStartTime(prev => prev + (Date.now() - pausedTime));
+    }
+  }, [currentQuestion, isAnimating, showResult, questionStartTimestamp, handleNextQuestion, maxQuestions, pausedTime]);
 
   const startActualQuiz = useCallback((difficulty, table) => {
     setSelectedDifficulty(difficulty);
@@ -243,6 +366,7 @@ const useMathGame = () => {
     setCurrentQuestion(firstQuestion);
     answeredQuestions.current.add(firstQuestion.question);
     setLastQuestion(firstQuestion.question);
+    questionStartTimestamp.current = Date.now();
     startQuestionTimer();
   }, [setAnswerSymbols, setCorrectCountForCompletion, setElapsedTime, setLastQuestion, setPausedTime, setQuizStartTime, setShowDifficultyPicker, setShowLearningModule, setShowResult, setSelectedDifficulty, setSelectedTable, startQuestionTimer]);
   
