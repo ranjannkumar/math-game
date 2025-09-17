@@ -1,7 +1,8 @@
 // src/hooks/useMathGame.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { generateBeltQuestion, getLearningModuleContent, beltFacts, generatePreTestQuestion } from '../utils/gameLogic';
+import { generateBeltQuestion, getLearningModuleContent, beltFacts, generatePreTestQuestion, getQuestionsForLevel } from '../utils/mathGameLogic';
 import audioManager from '../utils/audioUtils';
+import { sendPreTestResults } from '../api/stubApi';
 
 const useMathGame = () => {
   const [screen, setScreen] = useState('start');
@@ -86,6 +87,20 @@ const useMathGame = () => {
   const questionStartTimestamp = useRef(0);
 
   const maxQuestions = selectedDifficulty === 'brown' ? 10 : (selectedDifficulty && selectedDifficulty.startsWith('black')) ? (selectedDifficulty === 'black-7' ? 30 : 20) : 10;
+
+  const getQuizTimeLimit = (difficulty) => {
+    const degree = parseInt(difficulty.split('-')[1]);
+    switch(degree) {
+      case 1: return 60;
+      case 2: return 55;
+      case 3: return 50;
+      case 4: return 45;
+      case 5: return 40;
+      case 6: return 35;
+      case 7: return 30;
+      default: return Infinity;
+    }
+  };
   
   useEffect(() => {
     const today = new Date().toDateString();
@@ -319,11 +334,16 @@ const useMathGame = () => {
     const timeTaken = (Date.now() - questionStartTimestamp.current) / 1000;
     
     setQuestionTimes(times => [...times, timeTaken]);
-
+    
     if (isCorrect) {
       setCorrectCount(c => c + 1);
       audioManager.playCorrectSound();
       setQuizProgress(prev => Math.min(prev + (100 / maxQuestions), 100));
+      setCorrectCountForCompletion(prev => prev + 1);
+      
+      const today = new Date().toLocaleDateString();
+      const currentDailyCorrect = parseInt(localStorage.getItem(`math-daily-correct-${today}`) || '0');
+      localStorage.setItem(`math-daily-correct-${today}`, currentDailyCorrect + 1);
 
       if (timeTaken <= 1.5) {
         setAnswerSymbols(prev => [...prev, { symbol: '⚡', isCorrect: true, timeTaken }]);
@@ -333,8 +353,8 @@ const useMathGame = () => {
         setAnswerSymbols(prev => [...prev, { symbol: '✓', isCorrect: true, timeTaken }]);
       } else {
         setAnswerSymbols(prev => [...prev, { symbol: '❌', isCorrect: true, timeTaken }]);
+        setSlowQuestions(prev => new Set(prev).add(currentQuestion.question));
       }
-
     } else {
       setWrongCount(w => w + 1);
       audioManager.playWrongSound();
@@ -508,7 +528,9 @@ const useMathGame = () => {
     studentReactionSpeed, setStudentReactionSpeed,
     openSpeedTest,
     handleSpeedTestInput,
-    completeSpeedTest
+    completeSpeedTest,
+    maxQuestions,
+    getQuizTimeLimit
   };
 };
 

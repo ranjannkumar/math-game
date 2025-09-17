@@ -1,7 +1,7 @@
 // src/components/LearningModule.jsx
 import React, { useState, useEffect } from 'react';
 import audioManager from '../utils/audioUtils';
-import { beltFacts, getLearningModuleContent } from '../utils/gameLogic';
+import { beltFacts, getLearningModuleContent } from '../utils/mathGameLogic';
 
 const LearningModule = ({ pendingDifficulty, selectedTable, setShowLearningModule, setShowLearningQuestion, setLearningQuestion, startActualQuiz }) => {
   const [learningContent, setLearningContent] = useState('');

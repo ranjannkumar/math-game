@@ -1,6 +1,7 @@
 // src/components/PreTestScreen.jsx
 import React, { useState, useEffect } from 'react';
 import audioManager from '../utils/audioUtils';
+import { sendPreTestResults } from '../api/stubApi';
 
 const PreTestScreen = ({ preTestQuestions, preTestCurrentQuestion, preTestScore, setPreTestScore, setPreTestCurrentQuestion, setPreTestTimerActive, preTestTimerActive, preTestTimer, setPreTestTimer, setShowResultsModal, setPreTestResults, childName, setScreen }) => {
     const question = preTestQuestions[preTestCurrentQuestion];
@@ -12,13 +13,13 @@ const PreTestScreen = ({ preTestQuestions, preTestCurrentQuestion, preTestScore,
     useEffect(() => {
         if (preTestTimerActive) {
             const interval = setInterval(() => {
-                setTimer(prev => prev + 1);
+                setPreTestTimer(prev => prev + 1);
             }, 1000);
             return () => clearInterval(interval);
         }
-    }, [preTestTimerActive]);
+    }, [preTestTimerActive, setPreTestTimer]);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const answer = parseInt(inputValue);
         if (answer === question.correctAnswer) {
@@ -32,7 +33,7 @@ const PreTestScreen = ({ preTestQuestions, preTestCurrentQuestion, preTestScore,
             setMessage(`Wrong! The correct answer is ${question.correctAnswer}.`);
         }
         
-        setTimeout(() => {
+        setTimeout(async () => {
             if (preTestCurrentQuestion < preTestQuestions.length - 1) {
                 setPreTestCurrentQuestion(preTestCurrentQuestion + 1);
                 setInputValue('');
@@ -46,12 +47,12 @@ const PreTestScreen = ({ preTestQuestions, preTestCurrentQuestion, preTestScore,
                     section: 'addition',
                     score: finalScore,
                     totalQuestions: preTestQuestions.length,
-                    timeTaken: timer,
+                    timeTaken: preTestTimer,
                     accuracy: (finalScore / preTestQuestions.length) * 100,
                 };
                 setPreTestResults(results);
-                setShowResultsModal(true);
-                setScreen('main'); // Navigate to the main screen after the test
+                await sendPreTestResults(results);
+                setScreen('theme');
             }
         }, 1500);
     };
@@ -63,7 +64,7 @@ const PreTestScreen = ({ preTestQuestions, preTestCurrentQuestion, preTestScore,
                 <div className="text-center mb-4 text-gray-800">
                     <p className="text-lg sm:text-xl font-bold">Question {preTestCurrentQuestion + 1} of {preTestQuestions.length}</p>
                     <p className="text-4xl sm:text-5xl font-bold my-4">{question.question}</p>
-                    <p className="text-sm sm:text-base">Time: {timer}s</p>
+                    <p className="text-sm sm:text-base">Time: {preTestTimer}s</p>
                 </div>
                 <form onSubmit={handleSubmit} className="flex flex-col items-center">
                     <input

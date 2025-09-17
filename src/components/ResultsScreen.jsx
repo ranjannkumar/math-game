@@ -1,7 +1,7 @@
 // src/components/ResultsScreen.jsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import Confetti from 'react-confetti';
-import { showShootingStars } from '../utils/gameLogic';
+import { showShootingStars } from '../utils/mathGameLogic';
 
 const ResultsScreen = ({ 
   showConfetti, elapsedTime, correctCount, maxQuestions, selectedDifficulty, selectedTable, selectedTheme, countdown,
@@ -9,14 +9,30 @@ const ResultsScreen = ({
   blackBeltCountdown
 }) => {
   const allCorrect = correctCount === maxQuestions;
-  const withinTimeLimit = elapsedTime <= 30;
-  const avgTimePerQuestion = elapsedTime / maxQuestions;
-  const fastPerQuestion = avgTimePerQuestion < 5;
-  const canUnlockNext = allCorrect && withinTimeLimit && fastPerQuestion;
+
+  useEffect(() => {
+    if (allCorrect) {
+      showShootingStars();
+    }
+  }, [allCorrect]);
+
+  const getBeltName = (difficulty) => {
+    switch(difficulty) {
+      case 'white': return 'White';
+      case 'yellow': return 'Yellow';
+      case 'green': return 'Green';
+      case 'blue': return 'Blue';
+      case 'red': return 'Red';
+      case 'brown': return 'Brown';
+      default: return 'Black';
+    }
+  }
+
+  const beltName = getBeltName(selectedDifficulty);
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-purple-900/90 via-pink-900/85 to-rose-800/90 backdrop-blur-sm flex items-center justify-center z-50 safe-area-top safe-area-bottom">
-      {canUnlockNext && <Confetti
+      {showConfetti && <Confetti
         width={window.innerWidth}
         height={window.innerHeight}
         numberOfPieces={300}
@@ -27,22 +43,31 @@ const ResultsScreen = ({
         confettiSource={{ x: window.innerWidth / 2 - 150, y: 0, w: 300, h: 1 }}
         style={{ position: 'fixed', left: 0, top: 0, zIndex: 9999, pointerEvents: 'none' }}
       />}
-      {showShootingStars()}
+      {showConfetti && showShootingStars()}
       
       <div className="bg-white rounded-xl sm:rounded-2xl p-2 sm:p-3 md:p-4 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl w-full mx-2 sm:mx-4 shadow-2xl min-h-[200px] sm:min-h-[250px] md:min-h-[300px]">
         <div className="text-center flex flex-col justify-start items-center h-full pt-2 sm:pt-4 md:pt-6">
           <div className="text-sm sm:text-base md:text-lg text-gray-700 mb-2 sm:mb-4 md:mb-6">
             <div className="bg-gradient-to-r from-green-300 to-yellow-500 rounded-xl p-4 mb-6 shadow-lg">
               <p className="text-3xl sm:text-4xl md:text-5xl font-black text-center mb-6 tracking-wide no-underline break-words overflow-hidden mt-4" style={{ fontFamily: 'Georgia, serif', letterSpacing: '0.05em', maxWidth: '100%' }}>
-                {canUnlockNext ? "CONGRATULATIONS" : "Way To Go!"}
+                {allCorrect ? "CONGRATULATIONS" : "Way To Go!"}
               </p>
             </div>
-            <p className="text-green-400 font-bold text-2xl mt-2">You earned +10 points</p>
+            {allCorrect && <p className="text-green-400 font-bold text-2xl mt-2">You earned +10 points</p>}
             
-            {selectedDifficulty === 'brown' && correctCount === 10 && (
+            {allCorrect && selectedDifficulty !== 'black' && (
               <div className="mt-4 p-4 bg-gradient-to-r from-green-600 to-yellow-600 rounded-xl shadow-lg">
-                <p className="text-white font-bold text-xl mb-2">Amazing! You got the Brown Belt!</p>
-                <p className="text-white font-bold text-xl">Moving to Black Belt in <span className="text-yellow-300">{blackBeltCountdown}</span> seconds... 🥋</p>
+                <p className="text-white font-bold text-xl mb-2">Amazing! You got the {beltName} Belt!</p>
+                {selectedDifficulty === 'brown' && (
+                  <p className="text-white font-bold text-xl">Moving to Black Belt in <span className="text-yellow-300">{countdown}</span> seconds... 🥋</p>
+                )}
+                <div className="mt-2 text-center"></div>
+              </div>
+            )}
+            {allCorrect && selectedDifficulty?.startsWith('black-') && selectedDifficulty.endsWith('7') && (
+              <div className="mt-4 p-4 bg-gradient-to-r from-green-600 to-yellow-600 rounded-xl shadow-lg">
+                <p className="text-white font-bold text-xl mb-2">Amazing! You passed Degree 7!</p>
+                <p className="text-white font-bold text-xl">Moving to the next level in <span className="text-yellow-300">{countdown}</span> seconds... 🥋</p>
                 <div className="mt-2 text-center"></div>
               </div>
             )}
@@ -78,16 +103,11 @@ const ResultsScreen = ({
               Go To Belts
             </button>
           </div>
-          {(() => {
-            if (!canUnlockNext) {
-              return (
-                <div className="text-center mt-0">
-                  <p className="text-xl font-bold text-black-600">Restarting in <span className="text-red-600">{countdown}</span> seconds...</p>
-                </div>
-              );
-            }
-            return null;
-          })()}
+          {!allCorrect && (
+            <div className="text-center mt-0">
+              <p className="text-xl font-bold text-black-600">Restarting in <span className="text-red-600">{countdown}</span> seconds...</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FaArrowLeft, FaThLarge, FaRegImages } from 'react-icons/fa';
-import { themeConfigs, ageThemeMap } from '../utils/gameLogic';
+import { themeConfigs, ageThemeMap } from '../utils/mathGameLogic';
 
 const ThemePicker = ({ selectedTheme, setSelectedTheme, setScreen, setCurrentPage }) => {
   const [themePickerMode, setThemePickerMode] = useState('slide');

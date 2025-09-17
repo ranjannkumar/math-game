@@ -1,4 +1,6 @@
+// src/components/NameForm.jsx
 import React, { useState } from 'react';
+import { getUserDataByPin } from '../utils/userData';
 
 const NameForm = ({ setScreen, setShowPreTestPopup, setPreTestSection, childName, setChildName }) => {
   const [pin, setPin] = useState('');
@@ -12,16 +14,18 @@ const NameForm = ({ setScreen, setShowPreTestPopup, setPreTestSection, childName
     }
     setShowPinWarning(false);
     
-    let associatedName = '';
-    if (pin === '1') associatedName = 'Richie';
-    else if (pin === '2') associatedName = 'CJ';
+    const user = getUserDataByPin(pin);
 
-    if (associatedName) {
-      localStorage.setItem('math-child-name', associatedName);
-      setChildName(associatedName);
+    if (user) {
+      localStorage.setItem('math-child-name', user.childName);
+      localStorage.setItem('math-child-age', user.childAge);
+      setChildName(user.childName);
       // Trigger the pre-test popup
       setShowPreTestPopup(true);
       setPreTestSection('addition');
+    } else {
+      setShowPinWarning(true);
+      setPin('');
     }
   };
 

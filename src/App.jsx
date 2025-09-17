@@ -15,8 +15,8 @@ import LearningModule from './components/LearningModule.jsx';
 import SpeedTestScreen from './components/ui/SpeedTestScreen.jsx';
 import PreTestPopup from './components/PreTestPopup.jsx';
 import PreTestScreen from './components/PreTestScreen.jsx';
-import { showShootingStars, clearShootingStars } from './utils/gameLogic.js';
-import audioManager from './utils/audioUtils';
+import { showShootingStars, clearShootingStars } from './utils/mathGameLogic.js';
+import audioManager from './utils/audioUtils.js';
 
 const App = () => {
   const {
@@ -88,7 +88,8 @@ const App = () => {
     studentReactionSpeed, setStudentReactionSpeed,
     openSpeedTest,
     handleSpeedTestInput,
-    completeSpeedTest
+    completeSpeedTest,
+    pendingDifficulty, setPendingDifficulty
   } = useMathGame();
 
   const maxQuestions = selectedDifficulty === 'brown' ? 10 : (selectedDifficulty && selectedDifficulty.startsWith('black')) ? 20 : 10;
@@ -260,9 +261,9 @@ const App = () => {
             </div>
           )}
           
-          {showLearningModule && selectedDifficulty && (
+          {showLearningModule && pendingDifficulty && (
             <LearningModule
-              pendingDifficulty={selectedDifficulty}
+              pendingDifficulty={pendingDifficulty}
               selectedTable={selectedTable}
               setShowLearningModule={setShowLearningModule}
               setShowLearningQuestion={setShowLearningQuestion}

@@ -92,7 +92,7 @@ const DifficultyPicker = ({
       >
         <FaArrowLeft size={20} className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
       </button>
-      <div className="max-w-lg sm:max-w-xl md:max-w-2xl mx-auto w-full relative z-10 px-1 sm:px-2 md:px-4">
+      <div className="max-w-lg sm:max-w-xl md:max-2xl mx-auto w-full relative z-10 px-1 sm:px-2 md:px-4">
         {selectedTable && (
           <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-6 text-center drop-shadow-lg">
             Level {selectedTable}

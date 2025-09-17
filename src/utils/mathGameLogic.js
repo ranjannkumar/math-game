@@ -1,5 +1,6 @@
-// src/utils/gameLogic.js
+// src/utils/mathGameLogic.js
 import audioManager from './audioUtils';
+import { users } from './userData';
 
 // Shooting Stars
 export const showShootingStars = () => {
@@ -146,7 +147,7 @@ export const themeConfigs = {
     image: '/underwater.jpg',
     tableEmojis: ['🐠', '🐟', '🐬', '🐳', '🦈', '🦑', '🐙', '🦀', '🦐', '🦞', '🐡', '🐚'],
     tableNames: ['Fish', 'Goldfish', 'Dolphin', 'Whale', 'Shark', 'Squid', 'Octopus', 'Crab', 'Shrimp', 'Lobster', 'Puffer', 'Shell'],
-    tableColors: ['bg-blue-300 border-blue-500', 'bg-cyan-300 border-cyan-500', 'bg-teal-300 border-teal-600', 'bg-green-300 border-green-500', 'bg-yellow-300 border-yellow-500', 'bg-purple-300 border-purple-600', 'bg-gray-300 border-gray-500', 'bg-red-300 border-red-500', 'bg-amber-300 border-amber-500', 'bg-lime-300 border-lime-500', 'bg-fuchsia-300 border-fuchsia-500', 'bg-rose-300 border-rose-500']
+    tableColors: ['bg-blue-300 border-blue-500', 'bg-cyan-300 border-cyan-500', 'bg-teal-300 border-teal-600', 'bg-green-300 border-green-500', 'bg-yellow-300 border-yellow-500', 'bg-purple-300 border-purple-600', 'bg-gray-300 border-gray-500', 'bg-red-300 border-red-500', 'bg-amber-300 border-amber-500', 'bg-lime-300 border-lime-500', 'bg-fuchsia-300 border-fuchsia-500', 'bg-rose-300 border-rose-400']
   }
 };
 
@@ -548,7 +549,7 @@ export const beltFacts = {
 
 const allFacts = Object.values(beltFacts).flat();
 
-const getQuestionsForLevel = (difficulty, table) => {
+export const getQuestionsForLevel = (difficulty, table) => {
   if (difficulty.startsWith('black')) {
     const allQuestions = [];
     const addQuestions = (questions) => {
