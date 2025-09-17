@@ -1,14 +1,28 @@
 // src/components/PreTestScreen.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import audioManager from '../utils/audioUtils';
 import { sendPreTestResults } from '../api/stubApi';
+import { MathGameContext } from '../App.jsx';
 
-const PreTestScreen = ({ preTestQuestions, preTestCurrentQuestion, preTestScore, setPreTestScore, setPreTestCurrentQuestion, setPreTestTimerActive, preTestTimerActive, preTestTimer, setPreTestTimer, setShowResultsModal, setPreTestResults, childName, setScreen }) => {
+const PreTestScreen = () => {
+    const {
+        preTestQuestions,
+        preTestCurrentQuestion,
+        preTestScore,
+        setPreTestScore,
+        setPreTestCurrentQuestion,
+        setPreTestTimerActive,
+        preTestTimerActive,
+        preTestTimer,
+        setPreTestTimer,
+        setPreTestResults,
+        childName,
+        navigate
+    } = useContext(MathGameContext);
     const question = preTestQuestions[preTestCurrentQuestion];
     const [inputValue, setInputValue] = useState('');
     const [message, setMessage] = useState('');
     const [isCorrect, setIsCorrect] = useState(null);
-    const [timer, setTimer] = useState(0);
 
     useEffect(() => {
         if (preTestTimerActive) {
@@ -52,7 +66,7 @@ const PreTestScreen = ({ preTestQuestions, preTestCurrentQuestion, preTestScore,
                 };
                 setPreTestResults(results);
                 await sendPreTestResults(results);
-                setScreen('theme');
+                navigate('/theme');
             }
         }, 1500);
     };

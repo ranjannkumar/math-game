@@ -1,15 +1,11 @@
 // src/components/DifficultyPicker.jsx
-import React from 'react';
+import React, { useContext } from 'react';
 import { FaArrowLeft } from 'react-icons/fa';
-import DailyStatsCounter from './ui/DailyStatsCounter';
-import SessionTimer from './ui/SessionTimer';
+import { MathGameContext } from '../App.jsx';
 
-const BlackBeltDegreesModal = ({
-  selectedTable,
-  unlockedDegrees,
-  startQuizWithDifficulty,
-  setShowBlackBeltDegrees
-}) => {
+const BlackBeltDegreesModal = () => {
+  const { selectedTable, unlockedDegrees, startQuizWithDifficulty, setShowBlackBeltDegrees } = useContext(MathGameContext);
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-fade-in">
       <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 sm:p-8 shadow-2xl max-w-lg w-full relative">
@@ -43,11 +39,17 @@ const BlackBeltDegreesModal = ({
   );
 };
 
-const DifficultyPicker = ({ 
-  sessionTimerActive, sessionTimerStart, sessionTimerPaused, sessionTimerPauseStart, sessionTimerAccumulated,
-  selectedTable, setShowDifficultyPicker, setCurrentPage, startQuizWithDifficulty, isBlackUnlocked,
-  showBlackBeltDegrees, setShowBlackBeltDegrees, unlockedDegrees, completedBlackBeltDegrees, currentDegree, setCurrentDegree, tableProgress
-}) => {
+const DifficultyPicker = () => { 
+  const {
+    selectedTable,
+    startQuizWithDifficulty,
+    showBlackBeltDegrees,
+    setShowBlackBeltDegrees,
+    unlockedDegrees,
+    tableProgress,
+    navigate
+  } = useContext(MathGameContext);
+
   const tableProgressData = tableProgress[selectedTable] || {};
   const whiteCleared = tableProgressData.white?.perfectPerformance === true;
   const yellowCleared = tableProgressData.yellow?.perfectPerformance === true;
@@ -59,7 +61,7 @@ const DifficultyPicker = ({
   const isYellowUnlocked = whiteCleared;
   const isGreenUnlocked = yellowCleared;
   const isBlueUnlocked = greenCleared;
-  const isRedUnlocked = blueCleared;
+  const isRedUnlocked = greenCleared;
   const isBrownUnlocked = redCleared;
   const isBlackBeltUnlocked = brownCleared;
 
@@ -85,8 +87,7 @@ const DifficultyPicker = ({
           boxShadow: '0 4px 16px rgba(0,0,0,0.12)'
         }}
         onClick={() => {
-          setShowDifficultyPicker(false);
-          setCurrentPage('picker');
+          navigate('/levels');
         }}
         aria-label="Back to Difficulty Picker"
       >
@@ -273,27 +274,9 @@ const DifficultyPicker = ({
           </div>
         </div>
       </div>
-      <div style={{
-        position: 'fixed',
-        right: 'max(env(safe-area-inset-right), 1rem)',
-        bottom: 'max(env(safe-area-inset-bottom), 1rem)',
-        zIndex: 99999,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-end',
-        gap: 'clamp(0.5rem, 2vw, 1rem)'
-      }}>
-        <DailyStatsCounter style={{ background: 'none', boxShadow: 'none', position: 'static' }} />
-        <SessionTimer isActive={sessionTimerActive} startTime={sessionTimerStart} style={{ position: 'static' }} isPaused={sessionTimerPaused} pauseStartTime={sessionTimerPauseStart} accumulatedTime={sessionTimerAccumulated} />
-      </div>
 
       {showBlackBeltDegrees && (
-        <BlackBeltDegreesModal
-          selectedTable={selectedTable}
-          unlockedDegrees={unlockedDegrees}
-          startQuizWithDifficulty={startQuizWithDifficulty}
-          setShowBlackBeltDegrees={setShowBlackBeltDegrees}
-        />
+        <BlackBeltDegreesModal />
       )}
     </div>
   );

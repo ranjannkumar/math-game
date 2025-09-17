@@ -2,6 +2,21 @@
 import audioManager from './audioUtils';
 import { users } from './userData';
 
+// ===== Add near the top (below imports) =====
+const BELT_ORDER = ['white','yellow','green','blue','red','brown'];
+
+export function normalizeDifficulty(difficulty) {
+  if (difficulty == null) return null;
+  if (typeof difficulty === 'number') return BELT_ORDER[difficulty - 1] || null;
+  if (typeof difficulty === 'string') {
+    const d = difficulty.trim().toLowerCase();
+    if (/^\d+$/.test(d)) return BELT_ORDER[parseInt(d, 10) - 1] || null; // "2" -> "yellow"
+    return d;
+  }
+  return null;
+}
+
+
 // Shooting Stars
 export const showShootingStars = () => {
   console.log('🎆 Shooting stars function called!');
@@ -126,7 +141,7 @@ export const themeConfigs = {
     image: '/fairytales.jpg',
     tableEmojis: ['🧚', '🦄', '🐉', '👸', '🧙', '🧞', '🧜', '🦸', '🧝', '🧟', '🧚', '🦄'],
     tableNames: ['Fairy', 'Unicorn', 'Dragon', 'Princess', 'Wizard', 'Genie', 'Mermaid', 'Hero', 'Elf', 'Zombie', 'Sprite', 'Pegasus'],
-    tableColors: ['bg-pink-400 border-pink-600', 'bg-purple-300 border-purple-500', 'bg-blue-300 border-blue-500', 'bg-yellow-300 border-yellow-500', 'bg-green-300 border-green-500', 'bg-red-300 border-red-500', 'bg-orange-300 border-orange-500', 'bg-cyan-300 border-cyan-500', 'bg-lime-300 border-lime-500', 'bg-amber-300 border-amber-500', 'bg-fuchsia-300 border-fuchsia-500', 'bg-rose-300 border-rose-500']
+    tableColors: ['bg-pink-400 border-pink-600', 'bg-purple-300 border-purple-500', 'bg-blue-300 border-blue-500', 'bg-yellow-300 border-yellow-500', 'bg-green-300 border-green-500', 'bg-red-300 border-red-500', 'bg-orange-300 border-orange-500', 'bg-cyan-300 border-cyan-500', 'bg-lime-300 border-lime-500', 'bg-amber-300 border-amber-500', 'bg-fuchsia-300 border-fuchsia-500', 'bg-rose-300 border-rose-400']
   },
   farm: {
     bg: 'from-yellow-200 via-green-200 to-yellow-400',
@@ -550,59 +565,56 @@ export const beltFacts = {
 const allFacts = Object.values(beltFacts).flat();
 
 export const getQuestionsForLevel = (difficulty, table) => {
-  if (difficulty.startsWith('black')) {
+  const diff = normalizeDifficulty(difficulty);
+  const tbl = typeof table === 'number' ? table : Number(table);
+  if (!diff || Number.isNaN(tbl)) return [];
+
+  if (typeof diff === 'string' && diff.startsWith('black')) {
+    const degree = parseInt(diff.split('-')[1]);
+    const includedLevels = Array.from({ length: degree }, (_, i) => i + 1);
+
     const allQuestions = [];
-    const addQuestions = (questions) => {
-      questions.forEach(q => {
-        const existing = allQuestions.find(eq => eq.question === q.question);
-        if (!existing) {
-          allQuestions.push(q);
-        }
+    const addQuestions = (qs) => {
+      qs.forEach(q => {
+        if (!allQuestions.find(eq => eq.question === q.question)) allQuestions.push(q);
       });
     };
-    
-    // For black belt, all previous belt questions are included.
-    addQuestions(beltFacts.white);
-    addQuestions(beltFacts.yellow);
-    addQuestions(beltFacts.green);
-    addQuestions(beltFacts.blue);
-    addQuestions(beltFacts.red);
-    addQuestions(beltFacts.brown);
 
-    // Filter to questions for the specific level (table)
-    const questionsForTable = allQuestions.filter(q => {
-      const parts = q.question.split(' + ').map(Number);
-      return parts.includes(table);
-    });
+    if (includedLevels.includes(1)) addQuestions(beltFacts.white);
+    if (includedLevels.includes(2)) addQuestions(beltFacts.yellow);
+    if (includedLevels.includes(3)) addQuestions(beltFacts.green);
+    if (includedLevels.includes(4)) addQuestions(beltFacts.blue);
+    if (includedLevels.includes(5)) addQuestions(beltFacts.red);
+    if (includedLevels.includes(6)) addQuestions(beltFacts.brown);
 
-    return questionsForTable;
+    return allQuestions.filter(q => q.question.split(' + ').map(Number).includes(tbl));
   }
 
-  const newFactsForBelt = beltFacts[difficulty].filter(q => q.question.split(' + ').map(Number).includes(table));
+  const newFactsForBelt = (beltFacts[diff] || []).filter(
+    q => q.question.split(' + ').map(Number).includes(tbl)
+  );
   const newQuestions = newFactsForBelt.slice(0, 2);
 
   const previousBeltQuestions = [];
-  if (difficulty === 'yellow') previousBeltQuestions.push(...beltFacts.white);
-  if (difficulty === 'green') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow);
-  if (difficulty === 'blue') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow, ...beltFacts.green);
-  if (difficulty === 'red') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow, ...beltFacts.green, ...beltFacts.blue);
-  if (difficulty === 'brown') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow, ...beltFacts.green, ...beltFacts.blue, ...beltFacts.red);
+  if (diff === 'yellow') previousBeltQuestions.push(...beltFacts.white);
+  if (diff === 'green') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow);
+  if (diff === 'blue') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow, ...beltFacts.green);
+  if (diff === 'red') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow, ...beltFacts.green, ...beltFacts.blue);
+  if (diff === 'brown') previousBeltQuestions.push(...beltFacts.white, ...beltFacts.yellow, ...beltFacts.green, ...beltFacts.blue, ...beltFacts.red);
 
   const remainingQuestions = previousBeltQuestions.sort(() => 0.5 - Math.random());
-  
   const allQuestions = [...newQuestions, ...remainingQuestions];
   return allQuestions.slice(0, 10);
 };
 
-export function generateBeltQuestion(difficulty, totalQuestions, askedQuestions, lastQuestion, selectedTable = null) {
-  const questionsForLevel = getQuestionsForLevel(difficulty, selectedTable);
 
-  if (questionsForLevel.length === 0) {
-    return {
-      question: '1 + 1',
-      correctAnswer: 2,
-      answers: [1, 2, 3, 4]
-    };
+
+export function generateBeltQuestion(difficulty, totalQuestions, askedQuestions, lastQuestion, selectedTable = null) {
+  const diff = normalizeDifficulty(difficulty);
+  const questionsForLevel = getQuestionsForLevel(diff, selectedTable);
+
+  if (!questionsForLevel || questionsForLevel.length === 0) {
+    return { question: '1 + 1', correctAnswer: 2, answers: [1, 2, 3, 4] };
   }
 
   let nextQuestion = null;
@@ -616,34 +628,31 @@ export function generateBeltQuestion(difficulty, totalQuestions, askedQuestions,
   } while ((nextQuestion.question === lastQuestion || askedQuestions.has(nextQuestion.question)) && attempts < maxAttempts);
 
   if (!nextQuestion || nextQuestion.question === lastQuestion) {
-    const availableQuestions = questionsForLevel.filter(q => q.question !== lastQuestion && !askedQuestions.has(q.question));
-    if (availableQuestions.length > 0) {
-      nextQuestion = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
-    } else {
-      nextQuestion = questionsForLevel[0];
-    }
+    const available = questionsForLevel.filter(q => q.question !== lastQuestion && !askedQuestions.has(q.question));
+    nextQuestion = available.length ? available[Math.floor(Math.random() * available.length)] : questionsForLevel[0];
   }
 
-  const answers = generateAnswers(nextQuestion.correctAnswer);
-
-  return {
-    ...nextQuestion,
-    answers: answers
-  };
+  return { ...nextQuestion, answers: generateAnswers(nextQuestion.correctAnswer) };
 }
 
 export function getLearningModuleContent(difficulty, selectedTable) {
-  const difficultyFacts = beltFacts[difficulty];
+  const diff = normalizeDifficulty(difficulty);
+  const tbl = typeof selectedTable === 'number' ? selectedTable : Number(selectedTable);
+  if (!diff || Number.isNaN(tbl)) return '';
+
+  const difficultyFacts = beltFacts[diff];
   if (!difficultyFacts) return '';
+
   const factsForTable = difficultyFacts.filter(fact => {
-      const parts = fact.question.split(' + ').map(Number);
-      return parts.includes(selectedTable);
+    const parts = fact.question.split(' + ').map(Number);
+    return parts.includes(tbl);
   });
-  if (factsForTable.length > 0) {
-      return factsForTable.map(f => `${f.question} = ${f.correctAnswer}`).join('\n\n\n');
-  }
-  return '';
+
+  return factsForTable.length
+    ? factsForTable.map(f => `${f.question} = ${f.correctAnswer}`).join('\n\n\n')
+    : '';
 }
+
 
 export function generatePreTestQuestion(askedQuestions) {
   const questions = [

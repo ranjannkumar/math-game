@@ -1,53 +1,77 @@
 // src/components/LearningModule.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import audioManager from '../utils/audioUtils';
-import { beltFacts, getLearningModuleContent } from '../utils/mathGameLogic';
+import { beltFacts, getLearningModuleContent, normalizeDifficulty } from '../utils/mathGameLogic';
+import { MathGameContext } from '../App.jsx';
 
-const LearningModule = ({ pendingDifficulty, selectedTable, setShowLearningModule, setShowLearningQuestion, setLearningQuestion, startActualQuiz }) => {
+const LearningModule = () => {
+  const {
+    pendingDifficulty,
+    selectedTable,
+    setShowLearningModule,
+    setShowLearningQuestion,
+    setLearningQuestion,
+    startActualQuiz,
+    navigate
+  } = useContext(MathGameContext);
+
   const [learningContent, setLearningContent] = useState('');
   const [learningQuestionIndex, setLearningQuestionIndex] = useState(0);
 
   useEffect(() => {
-    if (pendingDifficulty && selectedTable) {
-      const content = getLearningModuleContent(pendingDifficulty, selectedTable);
+    const diff = normalizeDifficulty(pendingDifficulty);
+    if (diff != null && selectedTable != null) {
+      const content = getLearningModuleContent(diff, selectedTable);
       setLearningContent(content);
+    } else {
+      // Inputs invalid → keep modal but avoid crashing paths
+      console.warn('LearningModule: missing difficulty or table; staying idle.');
     }
   }, [pendingDifficulty, selectedTable]);
 
   const handleNextFact = () => {
-    const difficultyFacts = beltFacts[pendingDifficulty];
+    const diff = normalizeDifficulty(pendingDifficulty);
+    if (diff == null || selectedTable == null) {
+      console.error('Cannot proceed: difficulty or table is not set.');
+      // Either close the modal or take the user back safely
+      setShowLearningModule(false);
+      return;
+    }
+
+    const difficultyFacts = beltFacts[diff];
     if (!difficultyFacts) {
-      console.error(`No facts found for difficulty: ${pendingDifficulty}`);
-      startActualQuiz(pendingDifficulty, selectedTable);
+      console.error(`No facts found for difficulty: ${diff}`);
+      // Do NOT start quiz with bad inputs; just close gracefully
+      setShowLearningModule(false);
       return;
     }
 
     const currentTableFacts = difficultyFacts.filter(fact => {
       const parts = fact.question.split(' + ').map(Number);
-      if (parts.length === 2) {
-        return parts.includes(selectedTable);
-      }
-      return false;
+      return parts.includes(selectedTable);
     });
 
     if (learningQuestionIndex < currentTableFacts.length) {
       const nextFact = currentTableFacts[learningQuestionIndex];
-      const question = {
+      const answers = [
+        nextFact.correctAnswer,
+        nextFact.correctAnswer + 1,
+        nextFact.correctAnswer - 1,
+        nextFact.correctAnswer + 2
+      ].filter(ans => ans >= 0).sort(() => Math.random() - 0.5);
+
+      setLearningQuestion({
         question: nextFact.question,
         correctAnswer: nextFact.correctAnswer,
-        answers: [
-          nextFact.correctAnswer,
-          nextFact.correctAnswer + 1,
-          nextFact.correctAnswer - 1,
-          nextFact.correctAnswer + 2
-        ].filter(ans => ans >= 0).sort(() => Math.random() - 0.5)
-      };
-      setLearningQuestion(question);
+        answers
+      });
       setLearningQuestionIndex(prev => prev + 1);
       setShowLearningModule(false);
       setShowLearningQuestion(true);
     } else {
-      startActualQuiz(pendingDifficulty, selectedTable);
+      // After all facts → start quiz with normalized difficulty
+      startActualQuiz(diff, selectedTable);
+      navigate('/quiz');
     }
   };
 
