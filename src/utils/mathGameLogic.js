@@ -288,15 +288,21 @@ export function buildSixPreviousQuestions(level, belt) {
 // src/utils/mathGameLogic.js
 // ... (everything you already have above this point stays the same)
 
+// src/utils/mathGameLogic.js
+// ... keep everything you already have above ...
+
+// Build the FULL quiz. Supports color belts AND black degrees.
 export function buildQuizForBelt(level, belt) {
+  if (String(belt).startsWith('black')) {
+    const degree = parseInt(String(belt).split('-')[1] || '1', 10);
+    return buildQuizForBlack(level, degree);
+  }
+
   const fourNew = buildFourNewQuestions(level, belt);
   const sixPrev = buildSixPreviousQuestions(level, belt);
 
   // Combine → shuffle → ensure unique by question text → take 10
-  const combined = [...fourNew, ...sixPrev];
-  // Shuffle first for variety
-  combined.sort(() => Math.random() - 0.5);
-
+  const combined = [...fourNew, ...sixPrev].sort(() => Math.random() - 0.5);
   const seen = new Set();
   const unique = [];
   for (const q of combined) {
@@ -305,11 +311,9 @@ export function buildQuizForBelt(level, belt) {
     unique.push(q);
     if (unique.length === 10) break;
   }
-
-  // In rare cases there may be fewer than 10 uniques; pad with simple random facts in-range.
   while (unique.length < 10) {
-    const a = Math.floor(Math.random() * 6);
-    const b = Math.floor(Math.random() * 6);
+    const a = Math.floor(Math.random() * 7);
+    const b = Math.floor(Math.random() * 7);
     const key = `${a} + ${b}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -320,19 +324,68 @@ export function buildQuizForBelt(level, belt) {
       tag: 'pad',
     });
   }
-
   return unique;
 }
 
-// ... (rest of helpers unchanged)
+// ---------------- Black Belt ----------------
+function buildQuizForBlack(level, degree) {
+  // Degree 1–6: 20 Qs, Degree 7: 30 Qs, progressively larger addends
+  const total = degree === 7 ? 30 : 20;
+  const L = Math.max(1, Math.min(6, Number(level) || 1));
 
+  // grow ranges with level/degree (kept kid-friendly but challenging)
+  const maxAddend = Math.min(12, 5 + L + Math.ceil(degree * 1.5));
+  const minAddend = Math.max(0, Math.floor((degree - 1) / 2));
 
-// Learning module headline string for the FIRST fact
+  const pool = [];
+  for (let a = minAddend; a <= maxAddend; a++) {
+    for (let b = minAddend; b <= maxAddend; b++) {
+      pool.push([a, b]);
+      if (pool.length > total * 3) break;
+    }
+    if (pool.length > total * 3) break;
+  }
+
+  // shuffle and build unique questions
+  pool.sort(() => Math.random() - 0.5);
+  const seen = new Set();
+  const questions = [];
+  for (const [a, b] of pool) {
+    const q = `${a} + ${b}`;
+    if (seen.has(q)) continue;
+    seen.add(q);
+    const ans = a + b;
+    const choices = shuffleUnique([ans, ans + 1, Math.max(0, ans - 1), ans + 2]);
+    questions.push({ question: q, correctAnswer: ans, answers: choices, tag: 'black' });
+    if (questions.length === total) break;
+  }
+
+  // Pad if needed
+  while (questions.length < total) {
+    const a = Math.floor(Math.random() * (maxAddend + 1));
+    const b = Math.floor(Math.random() * (maxAddend + 1));
+    const q = `${a} + ${b}`;
+    if (seen.has(q)) continue;
+    seen.add(q);
+    const ans = a + b;
+    const choices = shuffleUnique([ans, ans + 1, Math.max(0, ans - 1), ans + 2]);
+    questions.push({ question: q, correctAnswer: ans, answers: choices, tag: 'black' });
+  }
+
+  return questions;
+}
+
 export function getLearningModuleContent(belt, level) {
+  if (String(belt).startsWith('black')) {
+    return 'Black Belt Challenge: Fast addition with bigger numbers!';
+  }
   const facts = getTwoFactsForBelt(level, belt);
   const [a, b] = facts[0];
   return `${a} + ${b} = ${a + b}`;
 }
+
+// ... keep the rest (themeConfigs, tableBgColors, helpers, etc.) unchanged
+
 
 // Normalize difficulty keys
 export function normalizeDifficulty(diff) {

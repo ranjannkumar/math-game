@@ -13,26 +13,30 @@ const ResultsScreen = () => {
     selectedTable,
     correctCount,
 
-    // make sure overlay doesn't persist when we leave
     setShowResult,
 
-    // cached progress to unlock next belt
     setTableProgress,
     tableProgress,
+
+    // black-belt state
+    unlockedDegrees,
+    setUnlockedDegrees,
+    completedBlackBeltDegrees,
+    setCompletedBlackBeltDegrees,
   } = useContext(MathGameContext);
 
+  const isBlack = String(selectedDifficulty).startsWith('black');
+  const degree = isBlack ? parseInt(String(selectedDifficulty).split('-')[1] || '1', 10) : null;
+
   const maxQuestions =
-    selectedDifficulty === 'brown'
-      ? 10
-      : (String(selectedDifficulty).startsWith('black')
-          ? (String(selectedDifficulty).endsWith('7') ? 30 : 20)
-          : 10);
+    isBlack ? (degree === 7 ? 30 : 20) :
+    selectedDifficulty === 'brown' ? 10 : 10;
 
   const allCorrect = correctCount === maxQuestions;
 
-  // Persist completion so next belt unlocks reliably
+  // Persist completion for color belts
   useEffect(() => {
-    if (!selectedTable || !selectedDifficulty) return;
+    if (!selectedTable || !selectedDifficulty || isBlack) return;
 
     const levelKey = String(selectedTable);
     const beltKey = String(selectedDifficulty);
@@ -55,9 +59,41 @@ const ResultsScreen = () => {
       };
       setTableProgress(updated);
     } catch {}
-  }, [selectedTable, selectedDifficulty, allCorrect, setTableProgress, tableProgress]);
+  }, [isBlack, selectedTable, selectedDifficulty, allCorrect, setTableProgress, tableProgress]);
 
-  // Fire shooting stars ONCE (even in React 18 Strict Mode dev)
+  // Persist completion & unlock next degree for black
+  useEffect(() => {
+    if (!isBlack || !degree) return;
+
+    // Add to completed list
+    if (!completedBlackBeltDegrees.includes(degree)) {
+      const updatedCompleted = [...completedBlackBeltDegrees, degree].sort((a, b) => a - b);
+      setCompletedBlackBeltDegrees(updatedCompleted);
+      localStorage.setItem('math-completed-black-belt-degrees', JSON.stringify(updatedCompleted));
+    }
+
+    // Ensure current degree is in unlocked list too (idempotent)
+    const lsRaw = localStorage.getItem('math-unlocked-degrees');
+    const lsArr = lsRaw ? (() => { try { return JSON.parse(lsRaw); } catch { return []; } })() : [];
+    const base = Array.from(new Set([...(unlockedDegrees || []), ...(lsArr || []), degree])).sort((a,b)=>a-b);
+
+    // Unlock next
+    const next = degree + 1;
+    if (next <= 7 && !base.includes(next)) base.push(next);
+
+    const normalized = Array.from(new Set(base)).sort((a, b) => a - b);
+    setUnlockedDegrees(normalized);
+    localStorage.setItem('math-unlocked-degrees', JSON.stringify(normalized));
+  }, [
+    isBlack,
+    degree,
+    unlockedDegrees,
+    setUnlockedDegrees,
+    completedBlackBeltDegrees,
+    setCompletedBlackBeltDegrees,
+  ]);
+
+  // Shooting stars once
   const starsShownRef = useRef(false);
   useEffect(() => {
     if (allCorrect && !starsShownRef.current) {
@@ -68,6 +104,7 @@ const ResultsScreen = () => {
   }, [allCorrect]);
 
   const getBeltName = (difficulty) => {
+    if (String(difficulty).startsWith('black')) return `Black (Degree ${degree})`;
     switch (difficulty) {
       case 'white': return 'White';
       case 'yellow': return 'Yellow';
@@ -75,13 +112,13 @@ const ResultsScreen = () => {
       case 'blue': return 'Blue';
       case 'red': return 'Red';
       case 'brown': return 'Brown';
-      default: return 'Black';
+      default: return 'Unknown';
     }
   };
 
-  const handleBackToBelts = () => {
+  const handlePrimary = () => {
     setShowResult(false);
-    navigate('/belts');
+    navigate(isBlack ? '/black' : '/belts');
   };
 
   const beltName = getBeltName(selectedDifficulty);
@@ -111,7 +148,7 @@ const ResultsScreen = () => {
           {allCorrect ? 'Congratulations!' : 'Great effort!'}
         </h2>
         <p className="text-lg mb-4">
-          You finished the {beltName} belt on Level {selectedTable}.
+          You finished {beltName} on Level {selectedTable}.
         </p>
         <p className="mb-6">
           Score: <strong>{correctCount}</strong> / {maxQuestions}
@@ -120,9 +157,9 @@ const ResultsScreen = () => {
         <div className="flex gap-3 justify-center">
           <button
             className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-xl transition-all"
-            onClick={handleBackToBelts}
+            onClick={handlePrimary}
           >
-            Choose another belt
+            {isBlack ? 'Choose another degree' : 'Choose another belt'}
           </button>
         </div>
       </div>
