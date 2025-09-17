@@ -1,121 +1,133 @@
 // src/components/ResultsScreen.jsx
-import React, { useEffect, useContext } from 'react';
+import React, { useEffect, useContext, useRef } from 'react';
 import Confetti from 'react-confetti';
-import { showShootingStars } from '../utils/mathGameLogic';
+import { showShootingStars, clearShootingStars } from '../utils/mathGameLogic';
 import { MathGameContext } from '../App.jsx';
+import { useNavigate } from 'react-router-dom';
 
 const ResultsScreen = () => {
-    const {
-        showConfetti, elapsedTime, correctCount, selectedDifficulty, selectedTable,
-        countdown, setShowResult, navigate, isBlackUnlocked
-    } = useContext(MathGameContext);
+  const navigate = useNavigate();
 
-    const maxQuestions = selectedDifficulty === 'brown' ? 10 : (selectedDifficulty && selectedDifficulty.startsWith('black')) ? (selectedDifficulty.endsWith('7') ? 30 : 20) : 10;
-    const allCorrect = correctCount === maxQuestions;
+  const {
+    selectedDifficulty,
+    selectedTable,
+    correctCount,
 
-    useEffect(() => {
-        if (allCorrect) {
-            showShootingStars();
-        }
-    }, [allCorrect]);
+    // make sure overlay doesn't persist when we leave
+    setShowResult,
 
-    const getBeltName = (difficulty) => {
-        switch(difficulty) {
-            case 'white': return 'White';
-            case 'yellow': return 'Yellow';
-            case 'green': return 'Green';
-            case 'blue': return 'Blue';
-            case 'red': return 'Red';
-            case 'brown': return 'Brown';
-            default: return 'Black';
-        }
-    };
+    // cached progress to unlock next belt
+    setTableProgress,
+    tableProgress,
+  } = useContext(MathGameContext);
 
-    const beltName = getBeltName(selectedDifficulty);
+  const maxQuestions =
+    selectedDifficulty === 'brown'
+      ? 10
+      : (String(selectedDifficulty).startsWith('black')
+          ? (String(selectedDifficulty).endsWith('7') ? 30 : 20)
+          : 10);
 
-    return (
-        <div className="fixed inset-0 bg-gradient-to-br from-purple-900/90 via-pink-900/85 to-rose-800/90 backdrop-blur-sm flex items-center justify-center z-50 safe-area-top safe-area-bottom">
-            {showConfetti && <Confetti
-                width={window.innerWidth}
-                height={window.innerHeight}
-                numberOfPieces={300}
-                gravity={0.5}
-                initialVelocityY={5}
-                recycle={false}
-                run={true}
-                confettiSource={{ x: window.innerWidth / 2 - 150, y: 0, w: 300, h: 1 }}
-                style={{ position: 'fixed', left: 0, top: 0, zIndex: 9999, pointerEvents: 'none' }}
-            />}
-            {allCorrect && showShootingStars()}
-            
-            <div className="bg-white rounded-xl sm:rounded-2xl p-2 sm:p-3 md:p-4 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl w-full mx-2 sm:mx-4 shadow-2xl min-h-[200px] sm:min-h-[250px] md:min-h-[300px]">
-                <div className="text-center flex flex-col justify-start items-center h-full pt-2 sm:pt-4 md:pt-6">
-                    <div className="text-sm sm:text-base md:text-lg text-gray-700 mb-2 sm:mb-4 md:mb-6">
-                        <div className="bg-gradient-to-r from-green-300 to-yellow-500 rounded-xl p-4 mb-6 shadow-lg">
-                            <p className="text-3xl sm:text-4xl md:text-5xl font-black text-center mb-6 tracking-wide no-underline break-words overflow-hidden mt-4" style={{ fontFamily: 'Georgia, serif', letterSpacing: '0.05em', maxWidth: '100%' }}>
-                                {allCorrect ? "CONGRATULATIONS" : "Way To Go!"}
-                            </p>
-                        </div>
-                        {allCorrect && <p className="text-green-400 font-bold text-2xl mt-2">You earned +10 points</p>}
-                        
-                        {allCorrect && selectedDifficulty !== 'brown' && !selectedDifficulty?.startsWith('black-') && (
-                            <div className="mt-4 p-4 bg-gradient-to-r from-green-600 to-yellow-600 rounded-xl shadow-lg">
-                                <p className="text-white font-bold text-xl mb-2">Amazing! You got the {beltName} Belt!</p>
-                            </div>
-                        )}
-                        {allCorrect && selectedDifficulty === 'brown' && (
-                            <div className="mt-4 p-4 bg-gradient-to-r from-green-600 to-yellow-600 rounded-xl shadow-lg">
-                                <p className="text-white font-bold text-xl mb-2">Amazing! You got the {beltName} Belt!</p>
-                                <p className="text-white font-bold text-xl">Moving to Black Belt in <span className="text-yellow-300">{countdown}</span> seconds... 🥋</p>
-                            </div>
-                        )}
-                        {allCorrect && selectedDifficulty?.startsWith('black-') && selectedDifficulty.endsWith('7') && (
-                            <div className="mt-4 p-4 bg-gradient-to-r from-green-600 to-yellow-600 rounded-xl shadow-lg">
-                                <p className="text-white font-bold text-xl mb-2">Amazing! You passed Degree 7!</p>
-                                <p className="text-white font-bold text-xl">Moving to the next level in <span className="text-yellow-300">{countdown}</span> seconds... 🥋</p>
-                            </div>
-                        )}
-                    </div>
-                    <div className="text-center mb-3">
-                        <div className="p-3">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 mb-4 -mt-1">
-                                    <div className="text-center"></div>
-                                    <div className="text-base text-gray-600 mb-2">Today's Score</div>
-                                    <p className="text-6xl sm:text-7xl md:text-8xl font-bold text-green-600 bg-black/10 border-2 border-black rounded-lg px-4 py-2">
-                                        {correctCount}
-                                    </p>
-                                </div>
-                                <div className="p-3 mb-4 -mt-1">
-                                    <div className="text-center"></div>
-                                    <div className="text-base text-gray-600 mb-2">Time Spent</div>
-                                    <p className="text-6xl sm:text-7xl md:text-8xl font-bold text-green-600 bg-black/10 border-2 border-black rounded-lg px-4 py-2">
-                                        {elapsedTime}s
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-2 items-center mt-0">
-                        <button
-                            className="bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 text-white font-bold py-3 px-4 rounded-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg border border-gray-600 w-48"
-                            onClick={() => {
-                                setShowResult(false);
-                                navigate('/belts');
-                            }}
-                        >
-                            Go To Belts
-                        </button>
-                    </div>
-                    {!allCorrect && (
-                        <div className="text-center mt-0">
-                            <p className="text-xl font-bold text-black-600">Restarting in <span className="text-red-600">{countdown}</span> seconds...</p>
-                        </div>
-                    )}
-                </div>
-            </div>
+  const allCorrect = correctCount === maxQuestions;
+
+  // Persist completion so next belt unlocks reliably
+  useEffect(() => {
+    if (!selectedTable || !selectedDifficulty) return;
+
+    const levelKey = String(selectedTable);
+    const beltKey = String(selectedDifficulty);
+    const perfect = allCorrect;
+
+    try {
+      const lsKey = `math-table-progress-${levelKey}-${beltKey}`;
+      localStorage.setItem(lsKey, perfect ? 'perfect' : 'completed');
+    } catch {}
+
+    try {
+      const prev = tableProgress || {};
+      const lvl = prev[levelKey] || {};
+      const updated = {
+        ...prev,
+        [levelKey]: {
+          ...lvl,
+          [beltKey]: { completed: true, perfectPerformance: perfect },
+        },
+      };
+      setTableProgress(updated);
+    } catch {}
+  }, [selectedTable, selectedDifficulty, allCorrect, setTableProgress, tableProgress]);
+
+  // Fire shooting stars ONCE (even in React 18 Strict Mode dev)
+  const starsShownRef = useRef(false);
+  useEffect(() => {
+    if (allCorrect && !starsShownRef.current) {
+      starsShownRef.current = true;
+      showShootingStars();
+    }
+    return () => clearShootingStars();
+  }, [allCorrect]);
+
+  const getBeltName = (difficulty) => {
+    switch (difficulty) {
+      case 'white': return 'White';
+      case 'yellow': return 'Yellow';
+      case 'green': return 'Green';
+      case 'blue': return 'Blue';
+      case 'red': return 'Red';
+      case 'brown': return 'Brown';
+      default: return 'Black';
+    }
+  };
+
+  const handleBackToBelts = () => {
+    setShowResult(false);
+    navigate('/belts');
+  };
+
+  const beltName = getBeltName(selectedDifficulty);
+
+  return (
+    <div
+      className="min-h-screen w-full relative px-3 py-6 flex flex-col items-center"
+      style={{
+        backgroundImage: "url('/night_sky_landscape.jpg')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      <Confetti
+        width={window.innerWidth}
+        height={window.innerHeight}
+        numberOfPieces={allCorrect ? 280 : 140}
+        gravity={0.5}
+        run
+        recycle={false}
+        style={{ position: 'fixed', inset: 0, zIndex: 50, pointerEvents: 'none' }}
+      />
+
+      <div className="relative z-10 w-full max-w-2xl text-center bg-white/90 rounded-2xl p-8 shadow-2xl">
+        <h2 className="text-3xl font-extrabold mb-2">
+          {allCorrect ? 'Congratulations!' : 'Great effort!'}
+        </h2>
+        <p className="text-lg mb-4">
+          You finished the {beltName} belt on Level {selectedTable}.
+        </p>
+        <p className="mb-6">
+          Score: <strong>{correctCount}</strong> / {maxQuestions}
+        </p>
+
+        <div className="flex gap-3 justify-center">
+          <button
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-xl transition-all"
+            onClick={handleBackToBelts}
+          >
+            Choose another belt
+          </button>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 export default ResultsScreen;

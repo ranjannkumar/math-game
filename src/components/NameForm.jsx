@@ -21,7 +21,7 @@ const NameForm = () => {
         if (user) {
             localStorage.setItem('math-child-name', user.childName);
             localStorage.setItem('math-child-age', user.childAge);
-            setChildName(user.childName);
+            // setChildName(user.childName);
             // After successful login, move to the pre-test popup
             navigate('/pre-test-popup');
         } else {
