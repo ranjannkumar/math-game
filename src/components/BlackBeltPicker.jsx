@@ -21,10 +21,11 @@ const BlackBeltPicker = () => {
     if (!selectedTable) navigate('/belts');
   }, [selectedTable, navigate]);
 
-  // Read unlocked degrees from localStorage
-  const readLsUnlocked = () => {
+  // Helper: read LS list for this level
+  const readLsUnlockedForLevel = () => {
+    if (!selectedTable) return [];
     try {
-      const raw = localStorage.getItem('math-unlocked-degrees');
+      const raw = localStorage.getItem(`math-l${selectedTable}-unlocked-degrees`);
       const arr = raw ? JSON.parse(raw) : [];
       return Array.isArray(arr) ? arr : [];
     } catch {
@@ -32,43 +33,38 @@ const BlackBeltPicker = () => {
     }
   };
 
-  // Ensure Degree 1 is unlocked once Brown is completed (safety + idempotent)
+  // Safety: ensure degree 1 is unlocked if Brown is done (per-level)
   useEffect(() => {
-    const lvl = String(selectedTable || '');
-    if (!lvl) return;
+    if (!selectedTable) return;
+    const lvl = String(selectedTable);
     const brownDone =
       !!tableProgress?.[lvl]?.brown?.completed ||
       localStorage.getItem(`math-table-progress-${lvl}-brown`) !== null;
 
     if (!brownDone) return;
 
-    const ls = readLsUnlocked();
+    const ls = readLsUnlockedForLevel();
     const stateArr = Array.isArray(unlockedDegrees) ? unlockedDegrees : [];
     if (!ls.includes(1) || !stateArr.includes(1)) {
       const next = Array.from(new Set([1, ...stateArr, ...ls])).sort((a, b) => a - b);
       setUnlockedDegrees(next);
-      localStorage.setItem('math-unlocked-degrees', JSON.stringify(next));
+      localStorage.setItem(`math-l${selectedTable}-unlocked-degrees`, JSON.stringify(next));
     }
   }, [selectedTable, tableProgress, unlockedDegrees, setUnlockedDegrees]);
 
-  // Compute EFFECTIVE unlocks from state, LS, and completed list
-  const { effectiveMaxUnlocked, effectiveSet } = useMemo(() => {
-    const ls = readLsUnlocked();
+  // Compute EFFECTIVE unlocks from state + LS + completed list (all per-level)
+  const { effectiveMaxUnlocked, effectiveSet, completedSet } = useMemo(() => {
+    const ls = readLsUnlockedForLevel();
     const fromState = Array.isArray(unlockedDegrees) ? unlockedDegrees : [];
     const fromCompleted = Array.isArray(completedBlackBeltDegrees)
       ? completedBlackBeltDegrees
       : [];
 
     const base = new Set();
-
-    // Whatever is known as unlocked
     fromState.forEach((d) => base.add(d));
     ls.forEach((d) => base.add(d));
-
-    // Ensure degree 1 is always considered if any source has it
     if (base.size === 0) base.add(1);
 
-    // If you completed degree n, unlock n+1 (<= 7)
     if (fromCompleted.length) {
       const maxCompleted = Math.max(...fromCompleted);
       const next = Math.min(7, maxCompleted + 1);
@@ -78,12 +74,15 @@ const BlackBeltPicker = () => {
     const arr = Array.from(base).filter((d) => d >= 1 && d <= 7);
     const max = arr.length ? Math.max(...arr) : 1;
 
-    return { effectiveMaxUnlocked: Math.max(1, max), effectiveSet: new Set(arr) };
-  }, [unlockedDegrees, completedBlackBeltDegrees]);
+    return {
+      effectiveMaxUnlocked: Math.max(1, max),
+      effectiveSet: new Set(arr),
+      completedSet: new Set(fromCompleted),
+    };
+  }, [unlockedDegrees, completedBlackBeltDegrees, selectedTable]);
 
   const isUnlocked = (deg) => deg <= effectiveMaxUnlocked || effectiveSet.has(deg);
-  const isCompleted = (deg) =>
-    Array.isArray(completedBlackBeltDegrees) && completedBlackBeltDegrees.includes(deg);
+  const isCompleted = (deg) => completedSet.has(deg);
 
   const handlePick = (deg) => {
     if (!isUnlocked(deg)) return;
