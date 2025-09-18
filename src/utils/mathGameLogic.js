@@ -180,7 +180,7 @@ export const ageThemeMap = (age) => {
 // ---------- Belt / Level Math-Facts (Addition) ----------
 export const specFacts = {
   1: {
-    white:  [[0,9], [0,0]],
+    white:  [[0,0], [0,0]],
     yellow: [[0,1], [1,0]],
     green:  [[0,2], [2,0]],
     blue:   [[0,3], [3,0]],

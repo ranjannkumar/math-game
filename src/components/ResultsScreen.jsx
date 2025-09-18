@@ -20,7 +20,8 @@ const ResultsScreen = () => {
     setTableProgress,
     tableProgress,
 
-    // black belt state
+    // black-belt state (current level arrays)
+    unlockedDegrees,
     setUnlockedDegrees,
     setCompletedBlackBeltDegrees,
   } = useContext(MathGameContext);
@@ -28,9 +29,7 @@ const ResultsScreen = () => {
   const isBlack = String(selectedDifficulty).startsWith('black');
   const degree = isBlack ? parseInt(String(selectedDifficulty).split('-')[1] || '1', 10) : null;
 
-  const maxQuestions =
-    isBlack ? (degree === 7 ? 30 : 20) : 10;
-
+  const maxQuestions = isBlack ? (degree === 7 ? 30 : 20) : 10;
   const allCorrect = correctCount === maxQuestions;
 
   // === Persist completion for COLORED BELTS exactly once ===
@@ -43,10 +42,8 @@ const ResultsScreen = () => {
     const beltKey = String(selectedDifficulty);
     const lsKey = `math-table-progress-${levelKey}-${beltKey}`;
 
-    // If LS already has an entry OR state already marked completed, do nothing
     const alreadyInLS = !!localStorage.getItem(lsKey);
     const alreadyInState = !!(tableProgress?.[levelKey]?.[beltKey]?.completed);
-
     if (alreadyInLS || alreadyInState) {
       persistedColoredRef.current = true;
       return;
@@ -56,11 +53,9 @@ const ResultsScreen = () => {
       localStorage.setItem(lsKey, allCorrect ? 'perfect' : 'completed');
     } catch {}
 
-    // Functional update to avoid including tableProgress in deps
     setTableProgress((prev = {}) => {
       const prevBelt = prev?.[levelKey]?.[beltKey];
-      if (prevBelt?.completed) return prev; // idempotent
-
+      if (prevBelt?.completed) return prev;
       const levelObj = prev[levelKey] || {};
       return {
         ...prev,
@@ -74,36 +69,37 @@ const ResultsScreen = () => {
     persistedColoredRef.current = true;
   }, [selectedTable, selectedDifficulty, isBlack, allCorrect, setTableProgress, tableProgress]);
 
-  // === Persist completion & unlock NEXT degree for BLACK exactly once ===
+  // === Persist completion & unlock NEXT degree for BLACK (per-level) ===
   const persistedBlackRef = useRef(false);
   useEffect(() => {
     if (persistedBlackRef.current) return;
-    if (!isBlack || !degree) return;
+    if (!isBlack || !degree || !selectedTable) return;
 
-    // Add this degree to completed list (functional)
+    const uKey = `math-l${selectedTable}-unlocked-degrees`;
+    const cKey = `math-l${selectedTable}-completed-black-degrees`;
+
+    // Update completed list for this level
     setCompletedBlackBeltDegrees((prev = []) => {
-      if (prev.includes(degree)) return prev;
-      const updated = [...prev, degree].sort((a, b) => a - b);
-      try {
-        localStorage.setItem('math-completed-black-belt-degrees', JSON.stringify(updated));
-      } catch {}
-      return updated;
+      const base = Array.isArray(prev) ? prev.slice() : [];
+      if (!base.includes(degree)) base.push(degree);
+      base.sort((a, b) => a - b);
+      try { localStorage.setItem(cKey, JSON.stringify(base)); } catch {}
+      return base;
     });
 
-    // Ensure current degree is unlocked + unlock (degree + 1) if <= 7
+    // Ensure degree is unlocked + unlock next for this level
     setUnlockedDegrees((prev = []) => {
-      let base = Array.from(new Set([...prev, degree]));
+      let base = Array.isArray(prev) ? prev.slice() : [];
+      if (!base.includes(degree)) base.push(degree);
       const next = degree + 1;
-      if (next <= 7) base = Array.from(new Set([...base, next]));
-      base.sort((a, b) => a - b);
-      try {
-        localStorage.setItem('math-unlocked-degrees', JSON.stringify(base));
-      } catch {}
+      if (next <= 7 && !base.includes(next)) base.push(next);
+      base = Array.from(new Set(base)).sort((a, b) => a - b);
+      try { localStorage.setItem(uKey, JSON.stringify(base)); } catch {}
       return base;
     });
 
     persistedBlackRef.current = true;
-  }, [isBlack, degree, setUnlockedDegrees, setCompletedBlackBeltDegrees]);
+  }, [isBlack, degree, selectedTable, setUnlockedDegrees, setCompletedBlackBeltDegrees]);
 
   // Shooting stars once
   const starsShownRef = useRef(false);
@@ -129,7 +125,6 @@ const ResultsScreen = () => {
   })();
 
   const handlePrimary = () => {
-    // hide results immediately so destination page shows
     setShowResult(false);
     clearShootingStars();
     setLeaving(true);

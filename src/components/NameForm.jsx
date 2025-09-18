@@ -1,75 +1,76 @@
 // src/components/NameForm.jsx
-import React, { useState, useContext } from 'react';
-import { getUserDataByPin } from '../utils/userData';
+import React, { useContext, useState } from 'react';
 import { MathGameContext } from '../App.jsx';
 
 const NameForm = () => {
-    const { setChildName, navigate } = useContext(MathGameContext);
-    const [pin, setPin] = useState('');
-    const [showPinWarning, setShowPinWarning] = useState(false);
+  const {
+    childName, handleNameChange,
+    childAge, handleAgeChange,
+    childPin, handlePinChange,
+    handlePinSubmit,
+  } = useContext(MathGameContext);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!pin) {
-            setShowPinWarning(true);
-            return;
-        }
-        setShowPinWarning(false);
+  const [error, setError] = useState('');
 
-        const user = getUserDataByPin(pin);
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (!childPin || childPin.trim().length < 2) {
+      setError('Please enter a valid PIN (at least 2 characters).');
+      return;
+    }
+    setError('');
+    handlePinSubmit(childPin.trim());
+  };
 
-        if (user) {
-            localStorage.setItem('math-child-name', user.childName);
-            localStorage.setItem('math-child-age', user.childAge);
-            // setChildName(user.childName);
-            // After successful login, move to the pre-test popup
-            navigate('/pre-test-popup');
-        } else {
-            setShowPinWarning(true);
-            setPin('');
-        }
-    };
+  return (
+    <div
+      className="min-h-screen w-full flex items-center justify-center px-4"
+      style={{
+        background: 'linear-gradient(135deg,#ffe08a,#ff9ecd 40%,#8fd3fe)',
+      }}
+    >
+      <form
+        onSubmit={onSubmit}
+        className="bg-white/90 backdrop-blur rounded-2xl shadow-2xl p-6 w-full max-w-md"
+      >
+        <h1 className="text-2xl font-extrabold text-center mb-4">Welcome!</h1>
 
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center relative landscape-optimized portrait-optimized ios-notch" style={{
-            backgroundImage: "url('/night_sky_landscape.jpg')",
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            width: '100vw',
-            height: '100vh',
-            minHeight: '100vh',
-            paddingTop: 'max(env(safe-area-inset-top), 1rem)',
-            paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)',
-        }}>
-            <div className="bg-white/30 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 shadow-lg max-w-sm sm:max-w-md w-full flex flex-col items-center relative z-10 mx-2 sm:mx-4">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-baloo text-white mb-3 sm:mb-4 drop-shadow-lg">Let's Get Started!</h1>
-                <form onSubmit={handleSubmit} className="w-full flex flex-col items-center">
-                    <label className="text-lg sm:text-xl md:text-2xl font-comic text-white font-bold mb-1 sm:mb-2">PIN</label>
-                    <input
-                        type="password"
-                        value={pin}
-                        onChange={e => setPin(e.target.value)}
-                        className="mb-3 sm:mb-4 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-sm sm:text-base border-2 border-white border-opacity-60 focus:outline-none focus:ring-2 focus:ring-white w-28 sm:w-32 text-center bg-gray-700 bg-opacity-80 text-white font-bold transition-all duration-200"
-                        required
-                        maxLength={8}
-                        id="pin-input"
-                        autoComplete="off"
-                    />
-                    {showPinWarning && (
-                        <div className="text-red-500 text-sm mb-2">Please enter your PIN to continue.</div>
-                    )}
-                    <button
-                        type="submit"
-                        className="bg-green-800 hover:bg-green-900 text-white font-bold py-1.5 sm:py-2 px-4 sm:px-6 rounded-xl sm:rounded-2xl text-sm sm:text-lg mt-2 transition-all duration-300 transform hover:scale-105 active:scale-95"
-                        disabled={!pin}
-                    >
-                        Start
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
+        <label className="block text-sm font-semibold mb-1">Name</label>
+        <input
+          className="w-full mb-3 px-3 py-2 rounded-lg border outline-none focus:ring"
+          value={childName}
+          onChange={handleNameChange}
+          placeholder="Optional"
+        />
+
+        <label className="block text-sm font-semibold mb-1">Age</label>
+        <input
+          className="w-full mb-3 px-3 py-2 rounded-lg border outline-none focus:ring"
+          value={childAge}
+          onChange={handleAgeChange}
+          placeholder="Optional"
+          inputMode="numeric"
+        />
+
+        <label className="block text-sm font-semibold mb-1">PIN</label>
+        <input
+          className="w-full mb-2 px-3 py-2 rounded-lg border outline-none focus:ring"
+          value={childPin}
+          onChange={handlePinChange}
+          placeholder="Enter PIN"
+        />
+
+        {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
+
+        <button
+          type="submit"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition"
+        >
+          Continue
+        </button>
+      </form>
+    </div>
+  );
 };
 
 export default NameForm;
